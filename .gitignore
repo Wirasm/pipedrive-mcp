@@ -11,3 +11,5 @@ wheels/
 
 # environment variables
 .env
+
+**/.claude/settings.local.json
