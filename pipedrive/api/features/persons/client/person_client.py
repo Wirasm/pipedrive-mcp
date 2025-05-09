@@ -1,5 +1,5 @@
 import json
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union, cast
 
 from log_config import logger
 from pipedrive.api.base_client import BaseClient
@@ -7,11 +7,11 @@ from pipedrive.api.base_client import BaseClient
 
 class PersonClient:
     """Client for Pipedrive Person API endpoints"""
-    
+
     def __init__(self, base_client: BaseClient):
         """
         Initialize the Person client
-        
+
         Args:
             base_client: BaseClient instance for making API requests
         """
@@ -262,3 +262,75 @@ class PersonClient:
             f"PersonClient: Listed {len(persons_list)} persons. Next cursor: '{next_cursor}'"
         )
         return persons_list, next_cursor
+
+    async def search_persons(
+        self,
+        term: str,
+        fields: Optional[List[str]] = None,
+        exact_match: bool = False,
+        organization_id: Optional[int] = None,
+        include_fields: Optional[List[str]] = None,
+        limit: int = 100,
+        cursor: Optional[str] = None,
+    ) -> Tuple[List[Dict[str, Any]], Optional[str]]:
+        """
+        Search for persons in Pipedrive
+
+        Args:
+            term: The search term to look for (min 2 chars, or 1 if exact_match=True)
+            fields: Fields to search in (name, email, phone, notes, custom_fields)
+            exact_match: When True, only exact matches are returned
+            organization_id: Filter persons by organization ID
+            include_fields: Additional fields to include in the results
+            limit: Maximum number of results to return (max 500)
+            cursor: Pagination cursor
+
+        Returns:
+            Tuple of (list of person results, next cursor)
+        """
+        logger.info(
+            f"PersonClient: Searching for persons with term '{term}'"
+        )
+
+        # Build query parameters
+        query_params: Dict[str, Any] = {
+            "term": term,
+            "exact_match": "true" if exact_match else "false",  # API expects string
+            "limit": limit,
+            "cursor": cursor,
+            "organization_id": organization_id,
+        }
+
+        if fields:
+            query_params["fields"] = ",".join(fields)
+
+        if include_fields:
+            query_params["include_fields"] = ",".join(include_fields)
+
+        # Filter out None values
+        final_query_params = {k: v for k, v in query_params.items() if v is not None}
+
+        logger.debug(f"PersonClient: search_persons query_params: {final_query_params}")
+
+        response_data = await self.base_client.request(
+            "GET",
+            "/persons/search",
+            query_params=final_query_params
+        )
+
+        data = response_data.get("data", [])
+        items = data.get("items", []) if isinstance(data, dict) else []
+
+        # Extract the next cursor from additional_data
+        additional_data = response_data.get("additional_data", {})
+        next_cursor = (
+            additional_data.get("next_cursor")
+            if isinstance(additional_data, dict)
+            else None
+        )
+
+        logger.info(
+            f"PersonClient: Found {len(items)} persons. Next cursor: '{next_cursor}'"
+        )
+
+        return items, next_cursor

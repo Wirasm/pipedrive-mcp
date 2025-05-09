@@ -11,6 +11,18 @@ from log_config import logger
 from pipedrive.api.features.persons.tools.person_create_tool import (
     create_person_in_pipedrive,
 )
+from pipedrive.api.features.persons.tools.person_get_tool import (
+    get_person_from_pipedrive,
+)
+from pipedrive.api.features.persons.tools.person_update_tool import (
+    update_person_in_pipedrive,
+)
+from pipedrive.api.features.persons.tools.person_delete_tool import (
+    delete_person_from_pipedrive,
+)
+from pipedrive.api.features.persons.tools.person_search_tool import (
+    search_persons_in_pipedrive,
+)
 from pipedrive.api.pipedrive_context import pipedrive_lifespan
 from pipedrive.mcp_instance import mcp
 

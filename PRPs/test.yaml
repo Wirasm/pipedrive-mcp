@@ -1,0 +1,40 @@
+name: "Person API tools"
+description: |
+
+  ## Goal
+  Implement the rest of the person API tools focus ont he V2 API endpoints for get update and delete. 
+
+  ## Why  
+
+  ## Endpoints
+  Search persons
+  Searches all persons by name, email, phone, notes and/or custom fields. This endpoint is a wrapper of /v1/itemSearch with a narrower OAuth scope. Found persons can be filtered by organization ID.
+  GET/api/v2/persons/search
+  
+  Get details of a person
+  Returns the details of a specific person. Fields ims, postal_address, notes, birthday, and job_title are only included if contact sync is enabled for the company.
+  GET/api/v2/persons/{id}
+  
+  Update a person
+  Updates the properties of a person.
+  If the company uses the Campaigns product, then this endpoint will also accept and return the marketing_status field.
+  PATCH/api/v2/persons/{id}
+
+  Delete a person
+  Marks a person as deleted. After 30 days, the person will be permanently deleted.
+  DELETE/api/v2/persons/{id}
+
+  ## Current directory structure
+
+  ## Files to reference
+
+  ## Editable context
+
+  ## Implementation checklist
+
+  ## Validation gates
+  Create tests for all tools
+  Each tool must be validated by running the tests
+
+  ## Notes
+  Ignore admin endpoints
