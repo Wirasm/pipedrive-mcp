@@ -92,8 +92,8 @@ async def create_person_in_pipedrive(
         
         logger.debug(f"Prepared payload for person creation: {payload}")
         
-        # Call the Pipedrive API
-        created_person = await pd_mcp_ctx.pipedrive_client.create_person(**payload)
+        # Call the Pipedrive API using the persons client
+        created_person = await pd_mcp_ctx.pipedrive_client.persons.create_person(**payload)
         
         logger.info(
             f"Successfully created person '{name}' with ID: {created_person.get('id')}"
