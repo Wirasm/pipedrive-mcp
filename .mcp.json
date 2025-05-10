@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "mcp-pipedrive": {
+    "command": "/Users/rasmus/.local/bin/uv",
+    "args": [
+      "run",
+      "--with",
+      "mcp[cli]",
+      "mcp",
+      "run",
+      "/Users/rasmus/Projects/mcp-servers/mcp-concept/server.py"
+    ]
+  }
+}
+}

@@ -1,0 +1,49 @@
+{
+  "allowedTools": {
+    "Bash": {
+      "allowed": true
+    },
+    "Edit": {
+      "allowed": true
+    },
+    "MultiEdit": {
+      "allowed": true
+    },
+    "Write": {
+      "allowed": true
+    },
+    "NotebookEdit": {
+      "allowed": true
+    },
+    "WebFetch": {
+      "allowed": true
+    },
+    "Agent": {
+      "allowed": true
+    },
+    "Glob": {
+      "allowed": true
+    },
+    "Grep": {
+      "allowed": true
+    },
+    "LS": {
+      "allowed": true
+    },
+    "Read": {
+      "allowed": true
+    },
+    "NotebookRead": {
+      "allowed": true
+    },
+    "TodoRead": {
+      "allowed": true
+    },
+    "TodoWrite": {
+      "allowed": true
+    },
+    "WebSearch": {
+      "allowed": true
+    }
+  }
+}
