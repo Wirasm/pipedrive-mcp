@@ -1,7 +1,5 @@
 import asyncio
-import json
 import os
-from typing import Any, Optional
 
 from dotenv import load_dotenv
 
@@ -11,17 +9,17 @@ from log_config import logger
 from pipedrive.api.features.persons.tools.person_create_tool import (
     create_person_in_pipedrive,
 )
-from pipedrive.api.features.persons.tools.person_get_tool import (
-    get_person_from_pipedrive,
-)
-from pipedrive.api.features.persons.tools.person_update_tool import (
-    update_person_in_pipedrive,
-)
 from pipedrive.api.features.persons.tools.person_delete_tool import (
     delete_person_from_pipedrive,
 )
+from pipedrive.api.features.persons.tools.person_get_tool import (
+    get_person_from_pipedrive,
+)
 from pipedrive.api.features.persons.tools.person_search_tool import (
     search_persons_in_pipedrive,
+)
+from pipedrive.api.features.persons.tools.person_update_tool import (
+    update_person_in_pipedrive,
 )
 from pipedrive.api.pipedrive_context import pipedrive_lifespan
 from pipedrive.mcp_instance import mcp
@@ -30,7 +28,7 @@ load_dotenv()
 
 
 async def main():
-    transport = os.getenv("TRANSPORT", "stdio")
+    transport = os.getenv("TRANSPORT", "sse")
     server_host = os.getenv("HOST", "0.0.0.0")
     server_port = int(os.getenv("PORT", "8152"))
 
@@ -41,7 +39,6 @@ async def main():
     if transport == "sse":
         await mcp.run_sse_async()  # Assuming this is the correct method from FastMCP
     else:
-        # If you have a stdio run method, use it, otherwise this might need adjustment
         logger.info(
             "Stdio transport selected. Ensure your FastMCP setup supports this or modify."
         )

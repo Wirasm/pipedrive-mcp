@@ -28,7 +28,12 @@ async def pipedrive_lifespan(server: FastMCP) -> AsyncIterator[PipedriveMCPConte
         logger.error("PIPEDRIVE_COMPANY_DOMAIN environment variable not set.")
         raise ValueError("PIPEDRIVE_COMPANY_DOMAIN environment variable not set.")
 
-    async with httpx.AsyncClient(timeout=30.0) as client:
+    # For development environments, allow disabling SSL verification
+    verify_ssl = os.getenv("VERIFY_SSL", "true").lower() != "false"
+    if not verify_ssl:
+        logger.warning("SSL verification is disabled. This should only be used in development environments.")
+
+    async with httpx.AsyncClient(timeout=30.0, verify=verify_ssl) as client:
         pd_client = PipedriveClient(
             api_token=pipedrive_api_token,
             company_domain=pipedrive_company_domain,

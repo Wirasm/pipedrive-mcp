@@ -4,10 +4,10 @@ from mcp.server.fastmcp import Context
 from pydantic import ValidationError
 
 from log_config import logger
-from pipedrive.api.features.shared.utils import format_tool_response
-from pipedrive.api.features.shared.conversion.id_conversion import convert_id_string
-from pipedrive.api.features.persons.models.person import Person
 from pipedrive.api.features.persons.models.contact_info import Email, Phone
+from pipedrive.api.features.persons.models.person import Person
+from pipedrive.api.features.shared.conversion.id_conversion import convert_id_string
+from pipedrive.api.features.shared.utils import format_tool_response
 from pipedrive.api.pipedrive_api_error import PipedriveAPIError
 from pipedrive.api.pipedrive_context import PipedriveMCPContext
 from pipedrive.mcp_instance import mcp
@@ -43,8 +43,19 @@ async def create_person_in_pipedrive(
     visible_to_str: Optional[str] = None
     """
     logger.debug(
-        f"Tool 'create_person_in_pipedrive' ENTERED with raw args: name='{name}'"
+        f"Tool 'create_person_in_pipedrive' ENTERED with raw args: "
+        f"name='{name}', owner_id_str={owner_id_str}, org_id_str={org_id_str}, "
+        f"email_address={email_address}, email_label={email_label}, "
+        f"phone_number={phone_number}, phone_label={phone_label}, "
+        f"visible_to_str={visible_to_str}"
     )
+
+    # Sanitize empty strings to None
+    owner_id_str = None if owner_id_str == "" else owner_id_str
+    org_id_str = None if org_id_str == "" else org_id_str
+    email_address = None if email_address == "" else email_address
+    phone_number = None if phone_number == "" else phone_number
+    visible_to_str = None if visible_to_str == "" else visible_to_str
 
     pd_mcp_ctx: PipedriveMCPContext = ctx.request_context.lifespan_context
 
@@ -53,12 +64,12 @@ async def create_person_in_pipedrive(
     if owner_error:
         logger.error(owner_error)
         return format_tool_response(False, error_message=owner_error)
-    
+
     org_id, org_error = convert_id_string(org_id_str, "org_id")
     if org_error:
         logger.error(org_error)
         return format_tool_response(False, error_message=org_error)
-    
+
     visible_to, visible_error = convert_id_string(visible_to_str, "visible_to")
     if visible_error:
         logger.error(visible_error)
@@ -67,41 +78,34 @@ async def create_person_in_pipedrive(
     try:
         # Create Person model instance with validation
         person = Person(
-            name=name,
-            owner_id=owner_id,
-            org_id=org_id,
-            visible_to=visible_to
+            name=name, owner_id=owner_id, org_id=org_id, visible_to=visible_to
         )
-        
+
         # Add email if provided
         if email_address and email_address.strip():
-            person.emails.append(Email(
-                value=email_address,
-                label=email_label
-            ))
-            
+            person.emails.append(Email(value=email_address, label=email_label))
+
         # Add phone if provided
         if phone_number and phone_number.strip():
-            person.phones.append(Phone(
-                value=phone_number,
-                label=phone_label
-            ))
+            person.phones.append(Phone(value=phone_number, label=phone_label))
 
         # Convert model to API-compatible dict
         payload = person.to_api_dict()
-        
+
         logger.debug(f"Prepared payload for person creation: {payload}")
-        
+
         # Call the Pipedrive API using the persons client
-        created_person = await pd_mcp_ctx.pipedrive_client.persons.create_person(**payload)
-        
+        created_person = await pd_mcp_ctx.pipedrive_client.persons.create_person(
+            **payload
+        )
+
         logger.info(
             f"Successfully created person '{name}' with ID: {created_person.get('id')}"
         )
-        
+
         # Return the API response
         return format_tool_response(True, data=created_person)
-        
+
     except ValidationError as e:
         logger.error(f"Validation error creating person '{name}': {str(e)}")
         return format_tool_response(False, error_message=f"Validation error: {str(e)}")
