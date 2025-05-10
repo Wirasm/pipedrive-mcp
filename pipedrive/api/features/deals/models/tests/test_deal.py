@@ -106,7 +106,12 @@ class TestDealModel:
 
         # Check error message
         error_msg = str(exc_info.value)
-        assert "Deal status must be one of: open, won, lost" in error_msg
+        # Our new validator uses a slightly different message format
+        assert "Invalid status: invalid_status" in error_msg
+        assert "Must be one of:" in error_msg
+        assert "open" in error_msg
+        assert "won" in error_msg
+        assert "lost" in error_msg
 
     def test_deal_lost_reason_validation(self):
         """Test that lost_reason can only be set with status='lost'"""

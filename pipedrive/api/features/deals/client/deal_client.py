@@ -53,47 +53,64 @@ class DealClient:
 
         Returns:
             Created deal data
+
+        Raises:
+            PipedriveAPIError: If the API call fails
+            ValueError: If input validation fails
         """
         logger.info(f"DealClient: Attempting to create deal '{title}'")
-        payload: Dict[str, Any] = {"title": title}
 
-        if value is not None:
-            payload["value"] = value
-        if currency:
-            payload["currency"] = currency
-        if person_id is not None:
-            payload["person_id"] = person_id
-        if org_id is not None:
-            payload["org_id"] = org_id
-        if status:
-            payload["status"] = status
-        if expected_close_date:
-            payload["expected_close_date"] = expected_close_date
-        if owner_id is not None:
-            payload["owner_id"] = owner_id
-        if stage_id is not None:
-            payload["stage_id"] = stage_id
-        if pipeline_id is not None:
-            payload["pipeline_id"] = pipeline_id
-        if visible_to is not None:
-            payload["visible_to"] = visible_to
-        if probability is not None:
-            payload["probability"] = probability
+        try:
+            payload: Dict[str, Any] = {"title": title}
 
-        if custom_fields:
-            payload.update(custom_fields)
+            if value is not None:
+                payload["value"] = value
+            if currency:
+                payload["currency"] = currency
+            if person_id is not None:
+                payload["person_id"] = person_id
+            if org_id is not None:
+                payload["org_id"] = org_id
+            if status:
+                payload["status"] = status
+            if expected_close_date:
+                payload["expected_close_date"] = expected_close_date
+            if owner_id is not None:
+                payload["owner_id"] = owner_id
+            if stage_id is not None:
+                payload["stage_id"] = stage_id
+            if pipeline_id is not None:
+                payload["pipeline_id"] = pipeline_id
+            if visible_to is not None:
+                payload["visible_to"] = visible_to
+            if probability is not None:
+                payload["probability"] = probability
 
-        # Log the payload without sensitive information
-        safe_log_payload = payload.copy()
-        if "value" in safe_log_payload:
-            safe_log_payload["value"] = "[REDACTED]"
+            if custom_fields:
+                payload.update(custom_fields)
 
-        logger.debug(
-            f"DealClient: create_deal payload: {json.dumps(safe_log_payload, indent=2)}"
-        )
+            # Validate required fields
+            if not title or not title.strip():
+                raise ValueError("Deal title cannot be empty")
 
-        response_data = await self.base_client.request("POST", "/deals", json_payload=payload)
-        return response_data.get("data", {})
+            # Log the payload without sensitive information
+            safe_log_payload = payload.copy()
+            if "value" in safe_log_payload:
+                safe_log_payload["value"] = "[REDACTED]"
+
+            logger.debug(
+                f"DealClient: create_deal payload: {json.dumps(safe_log_payload, indent=2)}"
+            )
+
+            response_data = await self.base_client.request("POST", "/deals", json_payload=payload)
+            return response_data.get("data", {})
+
+        except ValueError as e:
+            logger.error(f"Validation error in create_deal: {str(e)}")
+            raise
+        except Exception as e:
+            logger.error(f"Error in create_deal: {str(e)}")
+            raise
 
     async def get_deal(
         self,
@@ -111,21 +128,38 @@ class DealClient:
 
         Returns:
             Deal data
+
+        Raises:
+            PipedriveAPIError: If the API call fails
+            ValueError: If input validation fails
         """
         logger.info(f"DealClient: Attempting to get deal with ID {deal_id}")
-        query_params: Dict[str, Any] = {}
 
-        if include_fields:
-            query_params["include_fields"] = ",".join(include_fields)
-        if custom_fields_keys:
-            query_params["custom_fields"] = ",".join(custom_fields_keys)
+        try:
+            # Validate deal_id
+            if deal_id <= 0:
+                raise ValueError(f"Invalid deal ID: {deal_id}. Must be a positive integer.")
 
-        response_data = await self.base_client.request(
-            "GET",
-            f"/deals/{deal_id}",
-            query_params=query_params if query_params else None,
-        )
-        return response_data.get("data", {})
+            query_params: Dict[str, Any] = {}
+
+            if include_fields:
+                query_params["include_fields"] = ",".join(include_fields)
+            if custom_fields_keys:
+                query_params["custom_fields"] = ",".join(custom_fields_keys)
+
+            response_data = await self.base_client.request(
+                "GET",
+                f"/deals/{deal_id}",
+                query_params=query_params if query_params else None,
+            )
+            return response_data.get("data", {})
+
+        except ValueError as e:
+            logger.error(f"Validation error in get_deal: {str(e)}")
+            raise
+        except Exception as e:
+            logger.error(f"Error in get_deal: {str(e)}")
+            raise
 
     async def update_deal(
         self,
@@ -169,63 +203,87 @@ class DealClient:
             Updated deal data
 
         Raises:
-            ValueError: If no fields are provided to update
+            PipedriveAPIError: If the API call fails
+            ValueError: If input validation fails or no fields are provided to update
         """
         logger.info(f"DealClient: Attempting to update deal with ID {deal_id}")
-        payload: Dict[str, Any] = {}
 
-        if title is not None:
-            payload["title"] = title
-        if value is not None:
-            payload["value"] = value
-        if currency is not None:
-            payload["currency"] = currency
-        if person_id is not None:
-            payload["person_id"] = person_id
-        if org_id is not None:
-            payload["org_id"] = org_id
-        if status is not None:
-            payload["status"] = status
-        if expected_close_date is not None:
-            payload["expected_close_date"] = expected_close_date
-        if owner_id is not None:
-            payload["owner_id"] = owner_id
-        if stage_id is not None:
-            payload["stage_id"] = stage_id
-        if pipeline_id is not None:
-            payload["pipeline_id"] = pipeline_id
-        if visible_to is not None:
-            payload["visible_to"] = visible_to
-        if probability is not None:
-            payload["probability"] = probability
-        if lost_reason is not None:
-            payload["lost_reason"] = lost_reason
+        try:
+            # Validate deal_id
+            if deal_id <= 0:
+                raise ValueError(f"Invalid deal ID: {deal_id}. Must be a positive integer.")
 
-        if custom_fields:
-            payload.update(custom_fields)
+            payload: Dict[str, Any] = {}
 
-        if not payload:
-            logger.warning(
-                f"DealClient: update_deal called with no fields to update for ID {deal_id}."
+            if title is not None:
+                payload["title"] = title
+            if value is not None:
+                payload["value"] = value
+            if currency is not None:
+                payload["currency"] = currency
+            if person_id is not None:
+                payload["person_id"] = person_id
+            if org_id is not None:
+                payload["org_id"] = org_id
+            if status is not None:
+                payload["status"] = status
+            if expected_close_date is not None:
+                payload["expected_close_date"] = expected_close_date
+            if owner_id is not None:
+                payload["owner_id"] = owner_id
+            if stage_id is not None:
+                payload["stage_id"] = stage_id
+            if pipeline_id is not None:
+                payload["pipeline_id"] = pipeline_id
+            if visible_to is not None:
+                payload["visible_to"] = visible_to
+            if probability is not None:
+                payload["probability"] = probability
+            if lost_reason is not None:
+                payload["lost_reason"] = lost_reason
+
+            if custom_fields:
+                payload.update(custom_fields)
+
+            if not payload:
+                logger.warning(
+                    f"DealClient: update_deal called with no fields to update for ID {deal_id}."
+                )
+                # For safety, let's assume it's not intended if no fields are provided.
+                raise ValueError(
+                    "At least one field must be provided for updating a deal."
+                )
+
+            # Additional validations
+            if status is not None and status not in ["open", "won", "lost"]:
+                raise ValueError(f"Invalid status value: {status}. Must be one of: open, won, lost")
+
+            if status != "lost" and lost_reason is not None:
+                raise ValueError("Lost reason can only be set when status is 'lost'")
+
+            if probability is not None and (probability < 0 or probability > 100):
+                raise ValueError(f"Invalid probability value: {probability}. Must be between 0 and 100")
+
+            # Log the payload without sensitive information
+            safe_log_payload = payload.copy()
+            if "value" in safe_log_payload:
+                safe_log_payload["value"] = "[REDACTED]"
+
+            logger.debug(
+                f"DealClient: update_deal payload for ID {deal_id}: {json.dumps(safe_log_payload, indent=2)}"
             )
-            # For safety, let's assume it's not intended if no fields are provided.
-            raise ValueError(
-                "At least one field must be provided for updating a deal."
+
+            response_data = await self.base_client.request(
+                "PATCH", f"/deals/{deal_id}", json_payload=payload
             )
+            return response_data.get("data", {})
 
-        # Log the payload without sensitive information
-        safe_log_payload = payload.copy()
-        if "value" in safe_log_payload:
-            safe_log_payload["value"] = "[REDACTED]"
-
-        logger.debug(
-            f"DealClient: update_deal payload for ID {deal_id}: {json.dumps(safe_log_payload, indent=2)}"
-        )
-
-        response_data = await self.base_client.request(
-            "PATCH", f"/deals/{deal_id}", json_payload=payload
-        )
-        return response_data.get("data", {})
+        except ValueError as e:
+            logger.error(f"Validation error in update_deal: {str(e)}")
+            raise
+        except Exception as e:
+            logger.error(f"Error in update_deal: {str(e)}")
+            raise
 
     async def delete_deal(self, deal_id: int) -> Dict[str, Any]:
         """
@@ -236,16 +294,33 @@ class DealClient:
 
         Returns:
             Deletion result data
+
+        Raises:
+            PipedriveAPIError: If the API call fails
+            ValueError: If input validation fails
         """
         logger.info(f"DealClient: Attempting to delete deal with ID {deal_id}")
-        response_data = await self.base_client.request("DELETE", f"/deals/{deal_id}")
 
-        # Successful delete usually returns: {"success": true, "data": {"id": deal_id}}
-        return (
-            response_data.get("data", {})
-            if response_data.get("success")
-            else {"id": deal_id, "error_details": response_data}
-        )
+        try:
+            # Validate deal_id
+            if deal_id <= 0:
+                raise ValueError(f"Invalid deal ID: {deal_id}. Must be a positive integer.")
+
+            response_data = await self.base_client.request("DELETE", f"/deals/{deal_id}")
+
+            # Successful delete usually returns: {"success": true, "data": {"id": deal_id}}
+            return (
+                response_data.get("data", {})
+                if response_data.get("success")
+                else {"id": deal_id, "error_details": response_data}
+            )
+
+        except ValueError as e:
+            logger.error(f"Validation error in delete_deal: {str(e)}")
+            raise
+        except Exception as e:
+            logger.error(f"Error in delete_deal: {str(e)}")
+            raise
 
     async def list_deals(
         self,
@@ -287,53 +362,78 @@ class DealClient:
 
         Returns:
             Tuple of (list of deals, next cursor)
+
+        Raises:
+            PipedriveAPIError: If the API call fails
+            ValueError: If input validation fails
         """
         logger.info(
             f"DealClient: Attempting to list deals with limit {limit}, cursor '{cursor}'"
         )
-        query_params: Dict[str, Any] = {
-            "limit": limit,
-            "cursor": cursor,
-            "filter_id": filter_id,
-            "owner_id": owner_id,
-            "person_id": person_id,
-            "org_id": org_id,
-            "pipeline_id": pipeline_id,
-            "stage_id": stage_id,
-            "status": status,
-            "sort_by": sort_by,
-            "sort_direction": sort_direction,
-            "updated_since": updated_since,
-            "updated_until": updated_until,
-        }
-        if include_fields:
-            query_params["include_fields"] = ",".join(include_fields)
-        if custom_fields_keys:
-            query_params["custom_fields"] = ",".join(custom_fields_keys)
 
-        # Filter out None values from query_params before sending
-        final_query_params = {k: v for k, v in query_params.items() if v is not None}
-        logger.debug(
-            f"DealClient: list_deals query_params: {final_query_params}"
-        )
+        try:
+            # Validate limit
+            if limit < 1:
+                raise ValueError(f"Invalid limit: {limit}. Must be a positive integer.")
 
-        response_data = await self.base_client.request(
-            "GET",
-            "/deals",
-            query_params=final_query_params if final_query_params else None,
-        )
+            # Validate status if provided
+            if status is not None and status not in ["open", "won", "lost"]:
+                raise ValueError(f"Invalid status value: {status}. Must be one of: open, won, lost")
 
-        deals_list = response_data.get("data", [])
-        additional_data = response_data.get("additional_data", {})
-        next_cursor = (
-            additional_data.get("next_cursor")
-            if isinstance(additional_data, dict)
-            else None
-        )
-        logger.info(
-            f"DealClient: Listed {len(deals_list)} deals. Next cursor: '{next_cursor}'"
-        )
-        return deals_list, next_cursor
+            # Validate sort_direction if provided
+            if sort_direction is not None and sort_direction not in ["asc", "desc"]:
+                raise ValueError(f"Invalid sort_direction: {sort_direction}. Must be 'asc' or 'desc'.")
+
+            query_params: Dict[str, Any] = {
+                "limit": limit,
+                "cursor": cursor,
+                "filter_id": filter_id,
+                "owner_id": owner_id,
+                "person_id": person_id,
+                "org_id": org_id,
+                "pipeline_id": pipeline_id,
+                "stage_id": stage_id,
+                "status": status,
+                "sort_by": sort_by,
+                "sort_direction": sort_direction,
+                "updated_since": updated_since,
+                "updated_until": updated_until,
+            }
+            if include_fields:
+                query_params["include_fields"] = ",".join(include_fields)
+            if custom_fields_keys:
+                query_params["custom_fields"] = ",".join(custom_fields_keys)
+
+            # Filter out None values from query_params before sending
+            final_query_params = {k: v for k, v in query_params.items() if v is not None}
+            logger.debug(
+                f"DealClient: list_deals query_params: {final_query_params}"
+            )
+
+            response_data = await self.base_client.request(
+                "GET",
+                "/deals",
+                query_params=final_query_params if final_query_params else None,
+            )
+
+            deals_list = response_data.get("data", [])
+            additional_data = response_data.get("additional_data", {})
+            next_cursor = (
+                additional_data.get("next_cursor")
+                if isinstance(additional_data, dict)
+                else None
+            )
+            logger.info(
+                f"DealClient: Listed {len(deals_list)} deals. Next cursor: '{next_cursor}'"
+            )
+            return deals_list, next_cursor
+
+        except ValueError as e:
+            logger.error(f"Validation error in list_deals: {str(e)}")
+            raise
+        except Exception as e:
+            logger.error(f"Error in list_deals: {str(e)}")
+            raise
 
     async def search_deals(
         self,
@@ -363,55 +463,85 @@ class DealClient:
 
         Returns:
             Tuple of (list of deal results, next cursor)
+
+        Raises:
+            PipedriveAPIError: If the API call fails
+            ValueError: If input validation fails
         """
         logger.info(
             f"DealClient: Searching for deals with term '{term}'"
         )
 
-        # Build query parameters
-        query_params: Dict[str, Any] = {
-            "term": term,
-            "exact_match": "true" if exact_match else "false",
-            "limit": limit,
-            "cursor": cursor,
-            "person_id": person_id,
-            "organization_id": organization_id,
-            "status": status,
-        }
+        try:
+            # Validate required parameters
+            if not term:
+                raise ValueError("Search term cannot be empty")
 
-        if fields:
-            query_params["fields"] = ",".join(fields)
+            if not exact_match and len(term) < 2:
+                raise ValueError("Search term must be at least 2 characters long when exact_match is False")
 
-        if include_fields:
-            query_params["include_fields"] = ",".join(include_fields)
+            if exact_match and len(term) < 1:
+                raise ValueError("Search term must be at least 1 character long when exact_match is True")
 
-        # Filter out None values
-        final_query_params = {k: v for k, v in query_params.items() if v is not None}
+            # Validate limit
+            if limit < 1:
+                raise ValueError(f"Invalid limit: {limit}. Must be a positive integer.")
 
-        logger.debug(f"DealClient: search_deals query_params: {final_query_params}")
+            # Validate status if provided
+            if status is not None and status not in ["open", "won", "lost"]:
+                raise ValueError(f"Invalid status value: {status}. Must be one of: open, won, lost")
 
-        response_data = await self.base_client.request(
-            "GET",
-            "/deals/search",
-            query_params=final_query_params
-        )
+            # Build query parameters
+            query_params: Dict[str, Any] = {
+                "term": term,
+                "exact_match": "true" if exact_match else "false",
+                "limit": limit,
+                "cursor": cursor,
+                "person_id": person_id,
+                "organization_id": organization_id,
+                "status": status,
+            }
 
-        data = response_data.get("data", [])
-        items = data.get("items", []) if isinstance(data, dict) else []
+            if fields:
+                query_params["fields"] = ",".join(fields)
 
-        # Extract the next cursor from additional_data
-        additional_data = response_data.get("additional_data", {})
-        next_cursor = (
-            additional_data.get("next_cursor")
-            if isinstance(additional_data, dict)
-            else None
-        )
+            if include_fields:
+                query_params["include_fields"] = ",".join(include_fields)
 
-        logger.info(
-            f"DealClient: Found {len(items)} deals. Next cursor: '{next_cursor}'"
-        )
+            # Filter out None values
+            final_query_params = {k: v for k, v in query_params.items() if v is not None}
 
-        return items, next_cursor
+            logger.debug(f"DealClient: search_deals query_params: {final_query_params}")
+
+            response_data = await self.base_client.request(
+                "GET",
+                "/deals/search",
+                query_params=final_query_params
+            )
+
+            data = response_data.get("data", [])
+            items = data.get("items", []) if isinstance(data, dict) else []
+
+            # Extract the next cursor from additional_data
+            additional_data = response_data.get("additional_data", {})
+            next_cursor = (
+                additional_data.get("next_cursor")
+                if isinstance(additional_data, dict)
+                else None
+            )
+
+            logger.info(
+                f"DealClient: Found {len(items)} deals. Next cursor: '{next_cursor}'"
+            )
+
+            return items, next_cursor
+
+        except ValueError as e:
+            logger.error(f"Validation error in search_deals: {str(e)}")
+            raise
+        except Exception as e:
+            logger.error(f"Error in search_deals: {str(e)}")
+            raise
 
     async def add_product_to_deal(
         self,
@@ -449,50 +579,98 @@ class DealClient:
 
         Returns:
             Created deal-product data
+
+        Raises:
+            PipedriveAPIError: If the API call fails
+            ValueError: If input validation fails
         """
         logger.info(f"DealClient: Adding product {product_id} to deal {deal_id}")
 
-        payload: Dict[str, Any] = {
-            "product_id": product_id,
-            "item_price": item_price,
-            "quantity": quantity,
-        }
+        try:
+            # Validate required parameters
+            if deal_id <= 0:
+                raise ValueError(f"Invalid deal ID: {deal_id}. Must be a positive integer.")
 
-        if tax is not None:
-            payload["tax"] = tax
-        if comments:
-            payload["comments"] = comments
-        if discount is not None:
-            payload["discount"] = discount
-        if discount_type:
-            payload["discount_type"] = discount_type
-        if tax_method:
-            payload["tax_method"] = tax_method
-        if product_variation_id is not None:
-            payload["product_variation_id"] = product_variation_id
-        if billing_frequency:
-            payload["billing_frequency"] = billing_frequency
-        if billing_frequency_cycles is not None:
-            payload["billing_frequency_cycles"] = billing_frequency_cycles
-        if billing_start_date:
-            payload["billing_start_date"] = billing_start_date
+            if product_id <= 0:
+                raise ValueError(f"Invalid product ID: {product_id}. Must be a positive integer.")
 
-        # Log the payload without sensitive information
-        safe_log_payload = payload.copy()
-        if "item_price" in safe_log_payload:
-            safe_log_payload["item_price"] = "[REDACTED]"
+            if item_price < 0:
+                raise ValueError(f"Invalid item price: {item_price}. Must be a non-negative number.")
 
-        logger.debug(
-            f"DealClient: add_product_to_deal payload: {json.dumps(safe_log_payload, indent=2)}"
-        )
+            if quantity <= 0:
+                raise ValueError(f"Invalid quantity: {quantity}. Must be a positive integer.")
 
-        response_data = await self.base_client.request(
-            "POST",
-            f"/deals/{deal_id}/products",
-            json_payload=payload
-        )
+            if tax < 0:
+                raise ValueError(f"Invalid tax value: {tax}. Must be a non-negative number.")
 
-        return response_data.get("data", {})
+            if discount < 0:
+                raise ValueError(f"Invalid discount value: {discount}. Must be a non-negative number.")
+
+            # Validate enum values
+            valid_discount_types = ["percentage", "amount"]
+            if discount_type not in valid_discount_types:
+                raise ValueError(f"Invalid discount type: {discount_type}. Must be one of: {', '.join(valid_discount_types)}")
+
+            if tax_method is not None:
+                valid_tax_methods = ["inclusive", "exclusive", "none"]
+                if tax_method not in valid_tax_methods:
+                    raise ValueError(f"Invalid tax method: {tax_method}. Must be one of: {', '.join(valid_tax_methods)}")
+
+            valid_billing_frequencies = ["one-time", "weekly", "monthly", "quarterly", "semi-annually", "annually"]
+            if billing_frequency not in valid_billing_frequencies:
+                raise ValueError(f"Invalid billing frequency: {billing_frequency}. Must be one of: {', '.join(valid_billing_frequencies)}")
+
+            if billing_frequency_cycles is not None and (billing_frequency_cycles <= 0 or billing_frequency_cycles > 208):
+                raise ValueError(f"Invalid billing frequency cycles: {billing_frequency_cycles}. Must be a positive integer less than or equal to 208.")
+
+            payload: Dict[str, Any] = {
+                "product_id": product_id,
+                "item_price": item_price,
+                "quantity": quantity,
+            }
+
+            if tax is not None:
+                payload["tax"] = tax
+            if comments:
+                payload["comments"] = comments
+            if discount is not None:
+                payload["discount"] = discount
+            if discount_type:
+                payload["discount_type"] = discount_type
+            if tax_method:
+                payload["tax_method"] = tax_method
+            if product_variation_id is not None:
+                payload["product_variation_id"] = product_variation_id
+            if billing_frequency:
+                payload["billing_frequency"] = billing_frequency
+            if billing_frequency_cycles is not None:
+                payload["billing_frequency_cycles"] = billing_frequency_cycles
+            if billing_start_date:
+                payload["billing_start_date"] = billing_start_date
+
+            # Log the payload without sensitive information
+            safe_log_payload = payload.copy()
+            if "item_price" in safe_log_payload:
+                safe_log_payload["item_price"] = "[REDACTED]"
+
+            logger.debug(
+                f"DealClient: add_product_to_deal payload: {json.dumps(safe_log_payload, indent=2)}"
+            )
+
+            response_data = await self.base_client.request(
+                "POST",
+                f"/deals/{deal_id}/products",
+                json_payload=payload
+            )
+
+            return response_data.get("data", {})
+
+        except ValueError as e:
+            logger.error(f"Validation error in add_product_to_deal: {str(e)}")
+            raise
+        except Exception as e:
+            logger.error(f"Error in add_product_to_deal: {str(e)}")
+            raise
 
     async def update_product_in_deal(
         self,
@@ -534,61 +712,110 @@ class DealClient:
             Updated deal-product data
 
         Raises:
-            ValueError: If no fields are provided to update
+            PipedriveAPIError: If the API call fails
+            ValueError: If input validation fails or no fields are provided to update
         """
         logger.info(f"DealClient: Updating product {product_attachment_id} in deal {deal_id}")
 
-        payload: Dict[str, Any] = {}
+        try:
+            # Validate IDs
+            if deal_id <= 0:
+                raise ValueError(f"Invalid deal ID: {deal_id}. Must be a positive integer.")
 
-        if item_price is not None:
-            payload["item_price"] = item_price
-        if quantity is not None:
-            payload["quantity"] = quantity
-        if tax is not None:
-            payload["tax"] = tax
-        if comments is not None:
-            payload["comments"] = comments
-        if discount is not None:
-            payload["discount"] = discount
-        if discount_type is not None:
-            payload["discount_type"] = discount_type
-        if tax_method is not None:
-            payload["tax_method"] = tax_method
-        if is_enabled is not None:
-            payload["is_enabled"] = is_enabled
-        if product_variation_id is not None:
-            payload["product_variation_id"] = product_variation_id
-        if billing_frequency is not None:
-            payload["billing_frequency"] = billing_frequency
-        if billing_frequency_cycles is not None:
-            payload["billing_frequency_cycles"] = billing_frequency_cycles
-        if billing_start_date is not None:
-            payload["billing_start_date"] = billing_start_date
+            if product_attachment_id <= 0:
+                raise ValueError(f"Invalid product attachment ID: {product_attachment_id}. Must be a positive integer.")
 
-        if not payload:
-            logger.warning(
-                f"DealClient: update_product_in_deal called with no fields to update."
+            payload: Dict[str, Any] = {}
+
+            if item_price is not None:
+                if item_price < 0:
+                    raise ValueError(f"Invalid item price: {item_price}. Must be a non-negative number.")
+                payload["item_price"] = item_price
+
+            if quantity is not None:
+                if quantity <= 0:
+                    raise ValueError(f"Invalid quantity: {quantity}. Must be a positive integer.")
+                payload["quantity"] = quantity
+
+            if tax is not None:
+                if tax < 0:
+                    raise ValueError(f"Invalid tax value: {tax}. Must be a non-negative number.")
+                payload["tax"] = tax
+
+            if comments is not None:
+                payload["comments"] = comments
+
+            if discount is not None:
+                if discount < 0:
+                    raise ValueError(f"Invalid discount value: {discount}. Must be a non-negative number.")
+                payload["discount"] = discount
+
+            if discount_type is not None:
+                valid_discount_types = ["percentage", "amount"]
+                if discount_type not in valid_discount_types:
+                    raise ValueError(f"Invalid discount type: {discount_type}. Must be one of: {', '.join(valid_discount_types)}")
+                payload["discount_type"] = discount_type
+
+            if tax_method is not None:
+                valid_tax_methods = ["inclusive", "exclusive", "none"]
+                if tax_method not in valid_tax_methods:
+                    raise ValueError(f"Invalid tax method: {tax_method}. Must be one of: {', '.join(valid_tax_methods)}")
+                payload["tax_method"] = tax_method
+
+            if is_enabled is not None:
+                payload["is_enabled"] = is_enabled
+
+            if product_variation_id is not None:
+                if product_variation_id <= 0:
+                    raise ValueError(f"Invalid product variation ID: {product_variation_id}. Must be a positive integer.")
+                payload["product_variation_id"] = product_variation_id
+
+            if billing_frequency is not None:
+                valid_billing_frequencies = ["one-time", "weekly", "monthly", "quarterly", "semi-annually", "annually"]
+                if billing_frequency not in valid_billing_frequencies:
+                    raise ValueError(f"Invalid billing frequency: {billing_frequency}. Must be one of: {', '.join(valid_billing_frequencies)}")
+                payload["billing_frequency"] = billing_frequency
+
+            if billing_frequency_cycles is not None:
+                if billing_frequency_cycles <= 0 or billing_frequency_cycles > 208:
+                    raise ValueError(f"Invalid billing frequency cycles: {billing_frequency_cycles}. Must be a positive integer less than or equal to 208.")
+                payload["billing_frequency_cycles"] = billing_frequency_cycles
+
+            if billing_start_date is not None:
+                # Could add date validation here in the future
+                payload["billing_start_date"] = billing_start_date
+
+            if not payload:
+                logger.warning(
+                    f"DealClient: update_product_in_deal called with no fields to update."
+                )
+                raise ValueError(
+                    "At least one field must be provided for updating a product in a deal."
+                )
+
+            # Log the payload without sensitive information
+            safe_log_payload = payload.copy()
+            if "item_price" in safe_log_payload:
+                safe_log_payload["item_price"] = "[REDACTED]"
+
+            logger.debug(
+                f"DealClient: update_product_in_deal payload: {json.dumps(safe_log_payload, indent=2)}"
             )
-            raise ValueError(
-                "At least one field must be provided for updating a product in a deal."
+
+            response_data = await self.base_client.request(
+                "PATCH",
+                f"/deals/{deal_id}/products/{product_attachment_id}",
+                json_payload=payload
             )
 
-        # Log the payload without sensitive information
-        safe_log_payload = payload.copy()
-        if "item_price" in safe_log_payload:
-            safe_log_payload["item_price"] = "[REDACTED]"
+            return response_data.get("data", {})
 
-        logger.debug(
-            f"DealClient: update_product_in_deal payload: {json.dumps(safe_log_payload, indent=2)}"
-        )
-
-        response_data = await self.base_client.request(
-            "PATCH",
-            f"/deals/{deal_id}/products/{product_attachment_id}",
-            json_payload=payload
-        )
-
-        return response_data.get("data", {})
+        except ValueError as e:
+            logger.error(f"Validation error in update_product_in_deal: {str(e)}")
+            raise
+        except Exception as e:
+            logger.error(f"Error in update_product_in_deal: {str(e)}")
+            raise
 
     async def delete_product_from_deal(
         self,
@@ -604,18 +831,37 @@ class DealClient:
 
         Returns:
             Deletion result data
+
+        Raises:
+            PipedriveAPIError: If the API call fails
+            ValueError: If input validation fails
         """
         logger.info(
             f"DealClient: Deleting product {product_attachment_id} from deal {deal_id}"
         )
 
-        response_data = await self.base_client.request(
-            "DELETE",
-            f"/deals/{deal_id}/products/{product_attachment_id}"
-        )
+        try:
+            # Validate IDs
+            if deal_id <= 0:
+                raise ValueError(f"Invalid deal ID: {deal_id}. Must be a positive integer.")
 
-        return (
-            response_data.get("data", {})
-            if response_data.get("success")
-            else {"id": product_attachment_id, "error_details": response_data}
-        )
+            if product_attachment_id <= 0:
+                raise ValueError(f"Invalid product attachment ID: {product_attachment_id}. Must be a positive integer.")
+
+            response_data = await self.base_client.request(
+                "DELETE",
+                f"/deals/{deal_id}/products/{product_attachment_id}"
+            )
+
+            return (
+                response_data.get("data", {})
+                if response_data.get("success")
+                else {"id": product_attachment_id, "error_details": response_data}
+            )
+
+        except ValueError as e:
+            logger.error(f"Validation error in delete_product_from_deal: {str(e)}")
+            raise
+        except Exception as e:
+            logger.error(f"Error in delete_product_from_deal: {str(e)}")
+            raise

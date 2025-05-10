@@ -138,7 +138,7 @@ class TestDealClient:
 
         # Call the method and expect exception
         with pytest.raises(PipedriveAPIError) as exc_info:
-            await deal_client.create_deal(title="")
+            await deal_client.create_deal(title="Test Deal")  # Use valid title to pass validation
 
         # Verify the exception
         assert "API Error: Invalid data" in str(exc_info.value)
