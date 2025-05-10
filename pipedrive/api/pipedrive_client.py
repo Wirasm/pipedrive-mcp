@@ -5,19 +5,20 @@ import httpx
 from log_config import logger
 from pipedrive.api.base_client import BaseClient
 from pipedrive.api.features.persons.client.person_client import PersonClient
+from pipedrive.api.features.deals.client.deal_client import DealClient
 
 
 class PipedriveClient:
     """
     Main client for Pipedrive API with access to all resources
     """
-    
+
     def __init__(
         self, api_token: str, company_domain: str, http_client: httpx.AsyncClient
     ):
         """
         Initialize the Pipedrive client
-        
+
         Args:
             api_token: Pipedrive API token
             company_domain: Pipedrive company domain
@@ -25,10 +26,11 @@ class PipedriveClient:
         """
         # Initialize the base client
         self.base_client = BaseClient(api_token, company_domain, http_client)
-        
+
         # Initialize resource-specific clients
         self.persons = PersonClient(self.base_client)
-        
+        self.deals = DealClient(self.base_client)
+
         logger.debug("PipedriveClient initialized.")
     
     # --- Person Methods (forwarding to persons client) ---
@@ -124,3 +126,92 @@ class PipedriveClient:
             updated_since=updated_since,
             updated_until=updated_until,
         )
+
+    # --- Deal Methods (forwarding to deals client) ---
+
+    async def create_deal(
+        self,
+        title: str,
+        value: Optional[float] = None,
+        currency: str = "USD",
+        person_id: Optional[int] = None,
+        org_id: Optional[int] = None,
+        status: str = "open",
+        expected_close_date: Optional[str] = None,
+        owner_id: Optional[int] = None,
+        stage_id: Optional[int] = None,
+        pipeline_id: Optional[int] = None,
+        visible_to: Optional[int] = None,
+        probability: Optional[int] = None,
+        custom_fields: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Forward to deals client create_deal method"""
+        return await self.deals.create_deal(
+            title=title,
+            value=value,
+            currency=currency,
+            person_id=person_id,
+            org_id=org_id,
+            status=status,
+            expected_close_date=expected_close_date,
+            owner_id=owner_id,
+            stage_id=stage_id,
+            pipeline_id=pipeline_id,
+            visible_to=visible_to,
+            probability=probability,
+            custom_fields=custom_fields,
+        )
+
+    async def get_deal(
+        self,
+        deal_id: int,
+        include_fields: Optional[List[str]] = None,
+        custom_fields_keys: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
+        """Forward to deals client get_deal method"""
+        return await self.deals.get_deal(
+            deal_id=deal_id,
+            include_fields=include_fields,
+            custom_fields_keys=custom_fields_keys,
+        )
+
+    async def update_deal(
+        self,
+        deal_id: int,
+        title: Optional[str] = None,
+        value: Optional[float] = None,
+        currency: Optional[str] = None,
+        person_id: Optional[int] = None,
+        org_id: Optional[int] = None,
+        status: Optional[str] = None,
+        expected_close_date: Optional[str] = None,
+        owner_id: Optional[int] = None,
+        stage_id: Optional[int] = None,
+        pipeline_id: Optional[int] = None,
+        visible_to: Optional[int] = None,
+        probability: Optional[int] = None,
+        lost_reason: Optional[str] = None,
+        custom_fields: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Forward to deals client update_deal method"""
+        return await self.deals.update_deal(
+            deal_id=deal_id,
+            title=title,
+            value=value,
+            currency=currency,
+            person_id=person_id,
+            org_id=org_id,
+            status=status,
+            expected_close_date=expected_close_date,
+            owner_id=owner_id,
+            stage_id=stage_id,
+            pipeline_id=pipeline_id,
+            visible_to=visible_to,
+            probability=probability,
+            lost_reason=lost_reason,
+            custom_fields=custom_fields,
+        )
+
+    async def delete_deal(self, deal_id: int) -> Dict[str, Any]:
+        """Forward to deals client delete_deal method"""
+        return await self.deals.delete_deal(deal_id=deal_id)

@@ -4,6 +4,36 @@
 Simple Reviewer for Code Analysis
 
 This script runs a Claude instance to analyze code and generate a review report.
+
+Usage:
+    # Review all changes in a branch compared to main
+    uv run python scripts/simple_review.py <branch_name> [--output <output_file>] [--verbose]
+
+    # Review only the latest commit in a branch
+    uv run python scripts/simple_review.py <branch_name> --latest-commit [--output <output_file>] [--verbose]
+
+Arguments:
+    branch_name             The git branch to review (required)
+    --output OUTPUT         Path to save the review (default: review_<branch>.md or review_latest_commit.md)
+    --verbose               Enable detailed progress output
+    --latest-commit         Review only the latest commit instead of all branch changes
+
+Examples:
+    # Review all changes in development-wip branch compared to main
+    uv run python scripts/simple_review.py development-wip
+
+    # Review only the latest commit in development-wip branch
+    uv run python scripts/simple_review.py development-wip --latest-commit
+
+    # Save review to a custom file with verbose output
+    uv run python scripts/simple_review.py feature-branch --output reviews/my_review.md --verbose
+
+Notes:
+    - The review focuses on code quality, architecture patterns, and best practices
+    - By default compares branch to main; with --latest-commit compares HEAD to HEAD~1
+    - Generates a markdown report with prioritized issues and recommendations
+    - Has a 20-minute timeout for complex codebases
+    - Use --verbose flag to see progress and a preview of the review
 """
 
 import argparse
@@ -12,7 +42,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-def run_review(branch_name, output_file, verbose=False):
+def run_review(branch_name, output_file, verbose=False, latest_commit=False):
     """Run Claude to review code and generate a report"""
     # Create output directory if it doesn't exist
     output_path = Path(output_file)
@@ -23,12 +53,24 @@ def run_review(branch_name, output_file, verbose=False):
         print(f"Running code review for branch: {branch_name}")
         print(f"Output will be saved to: {output_file}")
 
+    # Determine what to review
+    if latest_commit:
+        review_target = f"the latest commit in branch '{branch_name}'"
+        compare_cmd = f"HEAD~1...HEAD"
+        if verbose:
+            print(f"Reviewing only the latest commit")
+    else:
+        review_target = f"branch '{branch_name}' compared to main"
+        compare_cmd = f"main...{branch_name}"
+        if verbose:
+            print(f"Reviewing all changes between main and {branch_name}")
+
     # Create reviewer prompt
     reviewer_prompt = f"""
 Think hard about this task.
 
-You are a senior code reviewer examining ONLY the changes in branch '{branch_name}' compared to main.
-Your task is to provide a thorough, critical review STRICTLY LIMITED to the changes made in this branch.
+You are a senior code reviewer examining ONLY the changes in {review_target}.
+Your task is to provide a thorough, critical review STRICTLY LIMITED to these specific changes.
 
 Focus your review on these aspects:
 1. Consistency with vertical slice architecture patterns
@@ -47,8 +89,8 @@ For each issue found:
 5. Suggest a specific, actionable fix
 
 First run:
-1. 'git diff main...{branch_name} --name-only' to see which files were changed
-2. 'git diff main...{branch_name}' to see the actual line-by-line changes
+1. 'git diff {compare_cmd} --name-only' to see which files were changed
+2. 'git diff {compare_cmd}' to see the actual line-by-line changes
 
 Focus primarily on reviewing the changed lines and files, as these are what need to be evaluated for the PR/diff.
 
@@ -61,8 +103,8 @@ Your primary job is to review what changed in the diff, while having the freedom
 
 Start by running these commands to understand what has changed:
 ```bash
-git diff main...{branch_name} --name-only   # Lists all changed files
-git diff main...{branch_name} --stat        # Shows a summary of changes
+git diff {compare_cmd} --name-only   # Lists all changed files
+git diff {compare_cmd} --stat        # Shows a summary of changes
 ```
 
 Then examine the specific changes in each file before writing your review.
@@ -130,18 +172,21 @@ Your review will be automatically saved to a file, so focus on creating a detail
 
 def main():
     parser = argparse.ArgumentParser(description="Run code review with Claude")
-    parser.add_argument("branch", help="Git branch to review (compared to main)")
+    parser.add_argument("branch", help="Git branch to review (compared to main by default)")
     parser.add_argument("--output", help="Output file path for the review (default: review_<branch>.md)")
     parser.add_argument("--verbose", action="store_true", help="Enable verbose output")
-    
+    parser.add_argument("--latest-commit", action="store_true", help="Review only the latest commit (HEAD vs HEAD~1)")
+
     args = parser.parse_args()
-    
+
     # Set default output file if not specified
     output_file = args.output if args.output else f"review_{args.branch}.md"
-    
+    if args.latest_commit:
+        output_file = f"review_latest_commit.md" if not args.output else args.output
+
     # Run the review
-    success = run_review(args.branch, output_file, args.verbose)
-    
+    success = run_review(args.branch, output_file, args.verbose, args.latest_commit)
+
     sys.exit(0 if success else 1)
 
 if __name__ == "__main__":

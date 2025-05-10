@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 from log_config import logger
 
 # tools and lifespan has to be imported here for the server to work, lets figure out how to handle it nicer later
+# Person tools
 from pipedrive.api.features.persons.tools.person_create_tool import (
     create_person_in_pipedrive,
 )
@@ -21,6 +22,38 @@ from pipedrive.api.features.persons.tools.person_search_tool import (
 from pipedrive.api.features.persons.tools.person_update_tool import (
     update_person_in_pipedrive,
 )
+
+# Deal tools
+from pipedrive.api.features.deals.tools.deal_create_tool import (
+    create_deal_in_pipedrive,
+)
+from pipedrive.api.features.deals.tools.deal_get_tool import (
+    get_deal_from_pipedrive,
+)
+from pipedrive.api.features.deals.tools.deal_list_tool import (
+    list_deals_from_pipedrive,
+)
+from pipedrive.api.features.deals.tools.deal_search_tool import (
+    search_deals_in_pipedrive,
+)
+from pipedrive.api.features.deals.tools.deal_update_tool import (
+    update_deal_in_pipedrive,
+)
+from pipedrive.api.features.deals.tools.deal_delete_tool import (
+    delete_deal_from_pipedrive,
+)
+
+# Deal product tools
+from pipedrive.api.features.deals.tools.deal_product_add_tool import (
+    add_product_to_deal_in_pipedrive,
+)
+from pipedrive.api.features.deals.tools.deal_product_update_tool import (
+    update_product_in_deal_in_pipedrive,
+)
+from pipedrive.api.features.deals.tools.deal_product_delete_tool import (
+    delete_product_from_deal_in_pipedrive,
+)
+
 from pipedrive.api.pipedrive_context import pipedrive_lifespan
 from pipedrive.mcp_instance import mcp
 

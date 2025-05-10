@@ -23,6 +23,9 @@ The mcp-concept project is a Model Control Protocol (MCP) server implementation 
 
 ## Dependencies
 
+We always run script and the server with uv run.
+`uv run <script>`
+
 This project requires the following dependencies (defined in pyproject.toml):
 - httpx >= 0.28.1 (for async HTTP requests)
 - mcp[cli] >= 1.8.0 (for MCP server functionality)

@@ -7,6 +7,40 @@ This script:
 1. Configures allowed tools for Claude
 2. Runs Claude to implement a feature based on a PRP file
 3. Supports both interactive and non-interactive modes
+
+Usage:
+    # Run in interactive mode (recommended for development)
+    uv run python scripts/feature_claude_run.py --prp PRPs/deals_init.md --interactive
+
+    # Run in non-interactive (headless) mode
+    uv run python scripts/feature_claude_run.py --prp PRPs/deals_init.md
+
+    # Configure allowed tools in project settings (one-time setup)
+    uv run python scripts/feature_claude_run.py --configure-tools
+
+    # Configure allowed tools in global settings
+    uv run python scripts/feature_claude_run.py --configure-tools --global-config
+
+    # Specify a feature by name (will use PRPs/{feature}_init.md)
+    uv run python scripts/feature_claude_run.py --feature organizations --interactive
+
+Examples:
+    # Implement the deals feature interactively
+    uv run python scripts/feature_claude_run.py --prp PRPs/deals_init.md --interactive
+
+    # Implement the organizations feature in headless mode
+    uv run python scripts/feature_claude_run.py --prp PRPs/organizations_init.md
+
+    # Configure tools once, then run using feature name
+    uv run python scripts/feature_claude_run.py --configure-tools
+    uv run python scripts/feature_claude_run.py --feature deals --interactive
+
+Notes:
+    - Interactive mode allows real-time interaction with Claude
+    - Non-interactive mode runs Claude and captures output automatically
+    - Default feature is 'deals' if not specified
+    - Default PRP file is PRPs/{feature}_init.md if not specified
+    - Configure tools once before running to avoid permission prompts
 """
 
 import argparse
@@ -98,6 +132,8 @@ def run_claude_for_feature(prp_file, interactive=False):
         return
 
     prompt = f"""
+Think hard about this task.
+
 I need you to implement the feature described in the PRP file: {prp_file}
 
 First:
@@ -129,7 +165,7 @@ Let's approach this methodically, exploring the codebase first before implementi
             print(f"Starting interactive Claude session for {prp_file}...")
             print(f"Working directory: {os.getcwd()}")
             subprocess.run(
-                ["claude", "--think-hard"], input=prompt.encode(), check=True
+                ["claude"], input=prompt.encode(), check=True
             )
         except FileNotFoundError:
             print(
@@ -147,7 +183,6 @@ Let's approach this methodically, exploring the codebase first before implementi
             "claude",
             "-p",
             prompt,
-            "--think-hard",
             "--allowedTools",
             allowed_tools,
         ]
