@@ -153,16 +153,19 @@ class AgenticLoop:
             
             self.log(f"Created worktree for {role.value} at {dir_path}")
 
-    def _run_claude_with_prompt(self, role, prompt, think_level="think-hard", output_format="text"):
+    def _run_claude_with_prompt(self, role, prompt, think_level="think hard", output_format="text"):
         """Run Claude with a specific prompt in a specific worktree"""
         os.chdir(self.instance_dirs[role])
 
         # Configure Claude command
+        # Note: Extended thinking is triggered by text in the prompt, not by a command line flag
+        # We'll add the think_level text to the beginning of the prompt
+        enhanced_prompt = f"{think_level}. {prompt}"
+
         cmd = [
             "claude",
             "-p",
-            prompt,
-            "--think", "hard",  # Use the correct syntax for Claude's think flag
+            enhanced_prompt,
             "--allowedTools",
             "Bash,Edit,MultiEdit,Write,NotebookEdit,WebFetch,TodoWrite"
         ]
@@ -192,10 +195,12 @@ class AgenticLoop:
     def _run_reviewer(self):
         """Run the reviewer Claude instance to analyze code and generate a review"""
         self.log("Starting reviewer phase...")
-        
+
         # Create reviewer prompt
         reviewer_prompt = f"""
-You are a senior code reviewer examining the changes in branch '{self.branch_name}'. 
+Think hard about this task.
+
+You are a senior code reviewer examining the changes in branch '{self.branch_name}'.
 Your task is to provide a thorough, critical review focused on:
 
 1. Consistency with vertical slice architecture patterns
@@ -225,30 +230,39 @@ Save this review to {self.review_file}
 """
         
         # Run Claude as reviewer
-        self._run_claude_with_prompt(Role.REVIEWER, reviewer_prompt)
-        
-        # Check if review file was created
-        if not self.review_file.exists():
-            self.log("Error: Review file not created")
+        output = self._run_claude_with_prompt(Role.REVIEWER, reviewer_prompt)
+
+        # If output was obtained, write it to the review file
+        if output:
+            # Create directory if it doesn't exist
+            self.review_file.parent.mkdir(parents=True, exist_ok=True)
+
+            # Write the output to the review file
+            with open(self.review_file, "w") as f:
+                f.write(output)
+
+            self.log(f"Review saved to {self.review_file}")
+            return True
+        else:
+            self.log("Error: Review output not obtained")
             return False
-        
-        self.log(f"Review saved to {self.review_file}")
-        return True
 
     def _run_developer(self):
         """Run the developer Claude instance to implement fixes"""
         self.log("Starting developer phase...")
-        
+
         # Read review file
         if not self.review_file.exists():
             self.log("Error: Review file not found")
             return False
-            
+
         with open(self.review_file, "r") as f:
             review_content = f.read()
-        
+
         # Create developer prompt
         developer_prompt = f"""
+Think hard about this task.
+
 You are a senior developer implementing fixes based on a code review.
 Your task is to:
 
@@ -273,33 +287,42 @@ Save your development report to {self.development_plan_file}
 """
         
         # Run Claude as developer
-        self._run_claude_with_prompt(Role.DEVELOPER, developer_prompt)
-        
-        # Check if development plan file was created
-        if not self.development_plan_file.exists():
-            self.log("Error: Development plan file not created")
+        output = self._run_claude_with_prompt(Role.DEVELOPER, developer_prompt)
+
+        # If output was obtained, write it to the development plan file
+        if output:
+            # Create directory if it doesn't exist
+            self.development_plan_file.parent.mkdir(parents=True, exist_ok=True)
+
+            # Write the output to the development plan file
+            with open(self.development_plan_file, "w") as f:
+                f.write(output)
+
+            self.log(f"Development plan saved to {self.development_plan_file}")
+            return True
+        else:
+            self.log("Error: Development plan output not obtained")
             return False
-        
-        self.log(f"Development plan saved to {self.development_plan_file}")
-        return True
 
     def _run_validator(self):
         """Run the validator Claude instance to check fixes"""
         self.log("Starting validator phase...")
-        
+
         # Read review and development plan
         if not self.review_file.exists() or not self.development_plan_file.exists():
             self.log("Error: Required files not found")
             return False, False
-            
+
         with open(self.review_file, "r") as f:
             review_content = f.read()
-            
+
         with open(self.development_plan_file, "r") as f:
             dev_plan_content = f.read()
-        
+
         # Create validator prompt
         validator_prompt = f"""
+Think hard about this task.
+
 You are a validator responsible for ensuring code quality.
 Your task is to:
 
@@ -326,33 +349,39 @@ YOUR VALIDATION REPORT MUST END WITH ONE OF THESE LINES:
 """
         
         # Run Claude as validator
-        self._run_claude_with_prompt(Role.VALIDATOR, validator_prompt)
-        
-        # Check if validation file was created
-        if not self.validation_file.exists():
-            self.log("Error: Validation file not created")
+        output = self._run_claude_with_prompt(Role.VALIDATOR, validator_prompt)
+
+        # If output was obtained, write it to the validation file
+        if output:
+            # Create directory if it doesn't exist
+            self.validation_file.parent.mkdir(parents=True, exist_ok=True)
+
+            # Write the output to the validation file
+            with open(self.validation_file, "w") as f:
+                f.write(output)
+
+            # Check validation result
+            passed = "VALIDATION: PASSED" in output
+            self.log(f"Validation {'PASSED' if passed else 'FAILED'}")
+
+            return True, passed
+        else:
+            self.log("Error: Validation output not obtained")
             return False, False
-        
-        # Check validation result
-        with open(self.validation_file, "r") as f:
-            validation_content = f.read()
-            
-        passed = "VALIDATION: PASSED" in validation_content
-        self.log(f"Validation {'PASSED' if passed else 'FAILED'}")
-        
-        return True, passed
 
     def _run_pr_manager(self):
         """Run the PR manager Claude instance to create or update PR"""
         self.log("Starting PR manager phase...")
-        
+
         # Check all required files exist
         if not self.review_file.exists() or not self.development_plan_file.exists() or not self.validation_file.exists():
             self.log("Error: Required files not found")
             return False
-            
+
         # Create PR manager prompt
         pr_manager_prompt = f"""
+Think hard about this task.
+
 You are a PR manager responsible for preparing pull requests.
 Your task is to:
 
@@ -377,15 +406,22 @@ Save your PR report to {self.pr_file}
 """
         
         # Run Claude as PR manager
-        self._run_claude_with_prompt(Role.PR_MANAGER, pr_manager_prompt)
-        
-        # Check if PR file was created
-        if not self.pr_file.exists():
-            self.log("Error: PR file not created")
+        output = self._run_claude_with_prompt(Role.PR_MANAGER, pr_manager_prompt)
+
+        # If output was obtained, write it to the PR file
+        if output:
+            # Create directory if it doesn't exist
+            self.pr_file.parent.mkdir(parents=True, exist_ok=True)
+
+            # Write the output to the PR file
+            with open(self.pr_file, "w") as f:
+                f.write(output)
+
+            self.log(f"PR report saved to {self.pr_file}")
+            return True
+        else:
+            self.log("Error: PR report output not obtained")
             return False
-        
-        self.log(f"PR report saved to {self.pr_file}")
-        return True
 
     def _cleanup_worktrees(self):
         """Clean up temporary git worktrees"""
