@@ -155,42 +155,53 @@ class AgenticLoop:
 
     def _run_claude_with_prompt(self, role, prompt, think_level="think hard", output_format="text"):
         """Run Claude with a specific prompt in a specific worktree"""
-        os.chdir(self.instance_dirs[role])
+        # Save current directory
+        original_dir = os.getcwd()
+        self.log(f"Changing from {original_dir} to {self.instance_dirs[role]}")
 
-        # Configure Claude command
-        # Note: Extended thinking is triggered by text in the prompt, not by a command line flag
-        # We'll add the think_level text to the beginning of the prompt
-        enhanced_prompt = f"{think_level}. {prompt}"
-
-        cmd = [
-            "claude",
-            "-p",
-            enhanced_prompt,
-            "--allowedTools",
-            "Bash,Edit,MultiEdit,Write,NotebookEdit,WebFetch,TodoWrite"
-        ]
-
-        if output_format:
-            cmd.extend(["--output-format", output_format])
-
-        self.log(f"Running Claude as {role.value}...")
-        
-        # Run Claude and capture output
         try:
-            result = subprocess.run(
-                cmd, 
-                capture_output=True, 
-                text=True,
-                check=True
-            )
-            output = result.stdout
-            
-            self.log(f"Claude {role.value} completed successfully")
-            return output
-        except subprocess.CalledProcessError as e:
-            self.log(f"Error running Claude as {role.value}: {e}")
-            self.log(f"stderr: {e.stderr}")
-            return None
+            os.chdir(self.instance_dirs[role])
+            self.log(f"Successfully changed to {os.getcwd()}")
+
+            # Configure Claude command
+            # Note: Extended thinking is triggered by text in the prompt, not by a command line flag
+            # We'll add the think_level text to the beginning of the prompt
+            enhanced_prompt = f"{think_level}. {prompt}"
+
+            cmd = [
+                "claude",
+                "-p",
+                enhanced_prompt,
+                "--allowedTools",
+                "Bash,Edit,MultiEdit,Write,NotebookEdit,WebFetch,TodoWrite"
+            ]
+
+            if output_format:
+                cmd.extend(["--output-format", output_format])
+
+            self.log(f"Running Claude as {role.value}...")
+
+            # Run Claude and capture output
+            try:
+                result = subprocess.run(
+                    cmd,
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                    timeout=600  # 10 minute timeout
+                )
+                output = result.stdout
+
+                self.log(f"Claude {role.value} completed successfully")
+                return output
+            except subprocess.CalledProcessError as e:
+                self.log(f"Error running Claude as {role.value}: {e}")
+                self.log(f"stderr: {e.stderr}")
+                return None
+        finally:
+            # Return to original directory
+            self.log(f"Returning to original directory: {original_dir}")
+            os.chdir(original_dir)
 
     def _run_reviewer(self):
         """Run the reviewer Claude instance to analyze code and generate a review"""
@@ -226,7 +237,8 @@ Write your review in markdown format with the following sections:
 2. Issue List (all issues categorized by priority)
 3. Recommendations (strategic suggestions beyond specific fixes)
 
-Save this review to {self.review_file}
+When your analysis is complete, provide your full detailed review report in markdown format.
+The system will automatically save your output to {self.review_file}, so focus on creating the best, most detailed review possible.
 """
         
         # Run Claude as reviewer
@@ -240,6 +252,11 @@ Save this review to {self.review_file}
             # Write the output to the review file
             with open(self.review_file, "w") as f:
                 f.write(output)
+
+            # Show a preview of the output
+            preview_lines = output.split("\n")[:10]
+            preview = "\n".join(preview_lines) + "\n..."
+            self.log(f"Review output preview:\n{preview}")
 
             self.log(f"Review saved to {self.review_file}")
             return True
@@ -264,6 +281,7 @@ Save this review to {self.review_file}
 Think hard about this task.
 
 You are a senior developer implementing fixes based on a code review.
+You're working in a dedicated environment in directory {os.getcwd()}.
 Your task is to:
 
 1. Read the review at {self.review_file}
@@ -283,7 +301,8 @@ Make changes using tools like Edit and Bash as needed.
 Run tests with 'uv run pytest' to verify your changes.
 Commit your changes with clear messages.
 
-Save your development report to {self.development_plan_file}
+When your development work is complete, provide your full detailed development report in markdown format.
+The system will automatically save your output to {self.development_plan_file}, so focus on creating the best, most detailed development report possible.
 """
         
         # Run Claude as developer
@@ -297,6 +316,11 @@ Save your development report to {self.development_plan_file}
             # Write the output to the development plan file
             with open(self.development_plan_file, "w") as f:
                 f.write(output)
+
+            # Show a preview of the output
+            preview_lines = output.split("\n")[:10]
+            preview = "\n".join(preview_lines) + "\n..."
+            self.log(f"Development plan preview:\n{preview}")
 
             self.log(f"Development plan saved to {self.development_plan_file}")
             return True
@@ -341,7 +365,8 @@ Your task is to:
 Be rigorous in your assessment - we want high-quality code.
 Include specific evidence for your conclusions.
 
-Save your validation report to {self.validation_file}
+When your validation is complete, provide your full detailed validation report in markdown format.
+The system will automatically save your output to {self.validation_file}, so focus on creating the best, most detailed validation report possible.
 
 YOUR VALIDATION REPORT MUST END WITH ONE OF THESE LINES:
 - VALIDATION: PASSED (if all critical and high issues are fixed with no new issues)
@@ -359,6 +384,11 @@ YOUR VALIDATION REPORT MUST END WITH ONE OF THESE LINES:
             # Write the output to the validation file
             with open(self.validation_file, "w") as f:
                 f.write(output)
+
+            # Show a preview of the output
+            preview_lines = output.split("\n")[:10]
+            preview = "\n".join(preview_lines) + "\n..."
+            self.log(f"Validation preview:\n{preview}")
 
             # Check validation result
             passed = "VALIDATION: PASSED" in output
@@ -402,7 +432,8 @@ For a successful PR:
 2. Write a detailed PR description
 3. Use 'gh pr create' to submit the PR
 
-Save your PR report to {self.pr_file}
+When your PR preparation is complete, provide your full detailed PR report in markdown format.
+The system will automatically save your output to {self.pr_file}, so focus on creating the best, most detailed PR report possible.
 """
         
         # Run Claude as PR manager
@@ -416,6 +447,11 @@ Save your PR report to {self.pr_file}
             # Write the output to the PR file
             with open(self.pr_file, "w") as f:
                 f.write(output)
+
+            # Show a preview of the output
+            preview_lines = output.split("\n")[:10]
+            preview = "\n".join(preview_lines) + "\n..."
+            self.log(f"PR report preview:\n{preview}")
 
             self.log(f"PR report saved to {self.pr_file}")
             return True
@@ -504,6 +540,21 @@ def main():
     try:
         success = loop.run()
         sys.exit(0 if success else 1)
+    except FileNotFoundError as e:
+        print(f"Directory error during agentic loop execution: {e}")
+        print("This may be caused by worktree directories being removed. Will clean up and try to continue.")
+        # Ensure worktrees are cleaned up even if an exception occurs
+        loop._cleanup_worktrees()
+
+        # Remove output directory if it exists
+        if hasattr(loop, 'output_dir') and loop.output_dir.exists():
+            print(f"Removing output directory: {loop.output_dir}")
+            try:
+                shutil.rmtree(loop.output_dir)
+            except Exception as rm_err:
+                print(f"Error removing output directory: {rm_err}")
+
+        sys.exit(1)
     except Exception as e:
         print(f"Error during agentic loop execution: {e}")
         # Ensure worktrees are cleaned up even if an exception occurs
