@@ -4,6 +4,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 IMPORTANT: Before making changes, take time to understand the vertical slice architecture and existing patterns. When solving complex problems, use the phrase "think hard" to activate extended thinking mode for more thorough analysis.
 
+IMPORTANT: NEVER add Claude attribution comment blocks like "Generated with Claude Code" or "Co-Authored-By: Claude" to commit messages or code files. These are unnecessary in this project and will be rejected.
+
 ## Project Overview
 
 The mcp-concept project is a Model Control Protocol (MCP) server implementation for interacting with the Pipedrive CRM API. It provides a way for Claude to access and manipulate Pipedrive data through tool calls.
