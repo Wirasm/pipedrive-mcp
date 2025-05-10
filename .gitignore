@@ -16,3 +16,8 @@ wheels/
 
 # temporary files
 /tmp
+
+# pytest cache
+/.pytest_cache
+.pytest_cache
+pytest_cache
