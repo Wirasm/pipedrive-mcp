@@ -41,18 +41,23 @@ Focus your review on these aspects:
 
 For each issue found:
 1. Mark as CRITICAL, HIGH, MEDIUM, or LOW priority
-2. Provide the file path and line number of the CHANGED code causing the issue
-3. Explain the issue clearly with technical reasoning
-4. Suggest a specific, actionable fix
+2. Provide the file path and line number (preferably of changed code)
+3. Clearly indicate if the issue is in changed code or in related context
+4. Explain the issue with technical reasoning
+5. Suggest a specific, actionable fix
 
 First run:
 1. 'git diff main...{branch_name} --name-only' to see which files were changed
 2. 'git diff main...{branch_name}' to see the actual line-by-line changes
 
-Then analyze ONLY the changed lines and files - DO NOT review any files or sections that weren't modified in this branch.
-Focus EXCLUSIVELY on the changes shown in the diff output.
+Focus primarily on reviewing the changed lines and files, as these are what need to be evaluated for the PR/diff.
 
-Your job is to review ONLY what changed, not to review the entire codebase.
+You may examine related files and code when necessary to understand the context of changes, but:
+1. Your feedback should focus on issues in the changed code
+2. Only mention issues in unchanged code if they directly impact the changes being reviewed
+3. Always prioritize reviewing the actual diff changes first
+
+Your primary job is to review what changed in the diff, while having the freedom to explore context when it helps your analysis.
 
 Start by running these commands to understand what has changed:
 ```bash
@@ -65,6 +70,8 @@ Then examine the specific changes in each file before writing your review.
 Write your review in markdown format with the following sections:
 1. Summary (overall assessment and key themes)
 2. Issue List (all issues categorized by priority)
+   - 2.1 Issues in Changed Code
+   - 2.2 Context-Related Issues (if any)
 3. Recommendations (strategic suggestions beyond specific fixes)
 
 Your review will be automatically saved to a file, so focus on creating a detailed, helpful review.
