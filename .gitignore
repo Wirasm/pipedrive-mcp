@@ -13,3 +13,6 @@ wheels/
 .env
 
 **/.claude/settings.local.json
+
+# temporary files
+/tmp

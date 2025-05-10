@@ -135,9 +135,15 @@ Your report will be automatically saved to a file, so focus on implementing high
             developer_prompt,
             "--allowedTools",
             "Bash,Grep,Read,LS,Glob,Task,Edit,MultiEdit,Write",
-            "--output-format", 
+            "--output-format",
             "text"
         ]
+
+        # Debug prompt if verbose
+        if verbose:
+            print(f"Review file contents first few lines:")
+            with open(review_file, "r") as f:
+                print(f.readlines()[:5])
 
         # Run Claude and capture output
         result = subprocess.run(
@@ -148,6 +154,20 @@ Your report will be automatically saved to a file, so focus on implementing high
             timeout=3600  # 60 minute timeout - development can take longer
         )
         output = result.stdout
+
+        # Debug result if verbose
+        if verbose:
+            print(f"Claude stdout length: {len(output)}")
+            print(f"Claude stderr length: {len(result.stderr) if result.stderr else 0}")
+            print(f"Claude return code: {result.returncode}")
+            if not output.strip():
+                print("WARNING: Empty output from Claude!")
+                if result.stderr:
+                    print(f"First 200 chars of stderr: {result.stderr[:200]}")
+
+        # Ensure we have at least minimal content
+        if not output.strip():
+            output = "# Development Report\n\nNo content was returned from Claude. This could be due to a processing error or configuration issue."
 
         # Write output to file
         with open(output_file, "w") as f:
@@ -185,9 +205,16 @@ def main():
     args = parser.parse_args()
 
     # Set default output file if not specified
-    output_file = args.output if args.output else f"dev_report_{args.branch}.md"
-    if args.latest_commit:
-        output_file = f"dev_report_latest_commit.md" if not args.output else args.output
+    if args.output:
+        output_file = args.output
+    else:
+        # Create tmp directory if it doesn't exist
+        os.makedirs("tmp", exist_ok=True)
+
+        if args.latest_commit:
+            output_file = f"tmp/dev_report_latest_commit.md"
+        else:
+            output_file = f"tmp/dev_report_{args.branch}.md"
 
     # Run the development process
     success = run_development(args.review, output_file, args.branch, args.verbose, args.latest_commit)

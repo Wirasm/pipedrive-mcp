@@ -180,9 +180,16 @@ def main():
     args = parser.parse_args()
 
     # Set default output file if not specified
-    output_file = args.output if args.output else f"review_{args.branch}.md"
-    if args.latest_commit:
-        output_file = f"review_latest_commit.md" if not args.output else args.output
+    if args.output:
+        output_file = args.output
+    else:
+        # Create tmp directory if it doesn't exist
+        os.makedirs("tmp", exist_ok=True)
+
+        if args.latest_commit:
+            output_file = f"tmp/review_latest_commit.md"
+        else:
+            output_file = f"tmp/review_{args.branch}.md"
 
     # Run the review
     success = run_review(args.branch, output_file, args.verbose, args.latest_commit)
