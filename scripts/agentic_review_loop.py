@@ -196,31 +196,23 @@ class AgenticReviewLoop:
                 # PR Manager needs to create PRs via GitHub CLI
                 allowed_tools = "Bash,Grep,Read,LS,Glob,Task"
         
-        # Define maximum direct prompt length (8000 chars is a conservative limit for command line args)
-        MAX_DIRECT_PROMPT_LENGTH = 8000
-        use_file_input = len(prompt) > MAX_DIRECT_PROMPT_LENGTH
+        # Always use file-based input for security
+        # This prevents command line escaping issues with shlex.quote when handling untrusted data
         prompt_file = None
 
-        if use_file_input:
-            # Create a temporary file for the long prompt
+        try:
+            # Create a temporary file for the prompt
             with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.txt') as f:
                 prompt_file = f.name
                 f.write(prompt)
             self.debug(f"Using file-based input for prompt: {prompt_file}")
 
-        try:
             # Build Claude command
             cmd = [
                 "claude",
-                "--output-format", "text"
+                "--output-format", "text",
+                "-f", prompt_file
             ]
-
-            # Add prompt either directly or via file based on length
-            if use_file_input:
-                cmd.extend(["-f", prompt_file])
-            else:
-                # Escape the prompt for command line use
-                cmd.extend(["-p", shlex.quote(prompt)])
 
             # Add allowed tools if specified
             if allowed_tools:
@@ -266,8 +258,8 @@ class AgenticReviewLoop:
             self.log(f"Unexpected error: {e}")
             return f"# {role.value.capitalize()} Report\n\nAn unexpected error occurred: {e}"
         finally:
-            # Clean up the prompt file if we created one
-            if prompt_file:
+            # Clean up the prompt file if we created one and it still exists
+            if prompt_file and os.path.exists(prompt_file):
                 try:
                     os.unlink(prompt_file)
                 except Exception as e:
