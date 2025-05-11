@@ -82,7 +82,7 @@ class AgenticReviewLoop:
         verbose=False,
         skip_pr=False,
         pr_title=None,
-        timeout=1800,
+        timeout=600,  # Reduced timeout to 10 minutes by default
     ):
         """
         Initialize the agentic review loop with the given configuration.
@@ -191,16 +191,11 @@ class AgenticReviewLoop:
                 # PR Manager needs to create PRs via GitHub CLI
                 allowed_tools = "Bash,Grep,Read,LS,Glob,Task"
         
-        # Create a temporary file for the prompt
-        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.txt') as f:
-            prompt_file = f.name
-            f.write(prompt)
-        
         try:
             # Build Claude command
             cmd = [
                 "claude",
-                "-f", prompt_file,  # Use file input for long prompts
+                "-p", prompt,  # Use prompt directly instead of file
                 "--output-format", "text"
             ]
             
@@ -248,11 +243,8 @@ class AgenticReviewLoop:
             self.log(f"Unexpected error: {e}")
             return f"# {role.value.capitalize()} Report\n\nAn unexpected error occurred: {e}"
         finally:
-            # Clean up the prompt file
-            try:
-                os.unlink(prompt_file)
-            except:
-                pass
+            # No temporary file to clean up anymore
+            pass
 
     def run_reviewer(self):
         """
@@ -652,8 +644,8 @@ Examples:
                      help="Skip PR creation even if validation passes")
     parser.add_argument("--pr-title",
                      help="Custom title for PR (default: auto-generated)")
-    parser.add_argument("--timeout", type=int, default=1800,
-                     help="Timeout in seconds for each agent (default: 1800 - 30 mins)")
+    parser.add_argument("--timeout", type=int, default=600,
+                     help="Timeout in seconds for each agent (default: 600 - 10 mins)")
     
     args = parser.parse_args()
     
