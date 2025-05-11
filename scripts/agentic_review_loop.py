@@ -30,7 +30,7 @@ Options:
     --verbose, -v         Show verbose output
     --no-pr               Skip PR creation even if validation passes
     --pr-title TITLE      Custom title for PR (default: auto-generated)
-    --timeout N           Timeout in seconds for each agent (default: 1800 - 30 mins)
+    --timeout N           Timeout in seconds for each agent (default: 600 - 10 mins)
 
 Examples:
     # Review latest commit
@@ -47,6 +47,7 @@ import argparse
 import json
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -70,6 +71,10 @@ class AgenticReviewLoop:
     """
     Coordinates the review, development, validation, and PR creation workflow
     using multiple Claude instances.
+
+    The workflow uses multiple agents (reviewer, developer, validator, PR manager)
+    with configurable timeouts. By default, each agent has a 10-minute (600 seconds) timeout
+    which has been reduced from the previous 30-minute default for better efficiency.
     """
 
     def __init__(
@@ -96,7 +101,7 @@ class AgenticReviewLoop:
             verbose: Show verbose output
             skip_pr: Skip PR creation even if validation passes
             pr_title: Custom title for PR
-            timeout: Timeout in seconds for each agent
+            timeout: Timeout in seconds for each agent (default: 600 seconds/10 minutes)
         """
         # Set up basic config
         self.latest_commit = latest_commit
@@ -191,18 +196,36 @@ class AgenticReviewLoop:
                 # PR Manager needs to create PRs via GitHub CLI
                 allowed_tools = "Bash,Grep,Read,LS,Glob,Task"
         
+        # Define maximum direct prompt length (8000 chars is a conservative limit for command line args)
+        MAX_DIRECT_PROMPT_LENGTH = 8000
+        use_file_input = len(prompt) > MAX_DIRECT_PROMPT_LENGTH
+        prompt_file = None
+
+        if use_file_input:
+            # Create a temporary file for the long prompt
+            with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.txt') as f:
+                prompt_file = f.name
+                f.write(prompt)
+            self.debug(f"Using file-based input for prompt: {prompt_file}")
+
         try:
             # Build Claude command
             cmd = [
                 "claude",
-                "-p", prompt,  # Use prompt directly instead of file
                 "--output-format", "text"
             ]
-            
+
+            # Add prompt either directly or via file based on length
+            if use_file_input:
+                cmd.extend(["-f", prompt_file])
+            else:
+                # Escape the prompt for command line use
+                cmd.extend(["-p", shlex.quote(prompt)])
+
             # Add allowed tools if specified
             if allowed_tools:
                 cmd.extend(["--allowedTools", allowed_tools])
-                
+
             # Set timeout if specified
             _timeout = timeout or self.timeout
             
@@ -233,8 +256,8 @@ class AgenticReviewLoop:
             return output
             
         except subprocess.TimeoutExpired:
-            self.log(f"Error: {role.value.capitalize()} agent timed out after {timeout} seconds")
-            return f"# {role.value.capitalize()} Report\n\nThe agent timed out after {timeout} seconds."
+            self.log(f"Error: {role.value.capitalize()} agent timed out after {_timeout} seconds")
+            return f"# {role.value.capitalize()} Report\n\nThe agent timed out after {_timeout} seconds."
         except subprocess.CalledProcessError as e:
             self.log(f"Error running {role.value.capitalize()} agent: {e}")
             self.debug(f"stderr: {e.stderr}")
@@ -243,8 +266,12 @@ class AgenticReviewLoop:
             self.log(f"Unexpected error: {e}")
             return f"# {role.value.capitalize()} Report\n\nAn unexpected error occurred: {e}"
         finally:
-            # No temporary file to clean up anymore
-            pass
+            # Clean up the prompt file if we created one
+            if prompt_file:
+                try:
+                    os.unlink(prompt_file)
+                except Exception as e:
+                    self.debug(f"Error cleaning up temporary file: {e}")
 
     def run_reviewer(self):
         """
@@ -487,34 +514,56 @@ Think hard about this task.
 You are a PR manager responsible for preparing a high-quality pull request.
 Your task is to:
 
-1. Read the validation report at {self.validation_file} to confirm validation has passed
+1. Read ALL previous reports to gather comprehensive context:
+   - Read the original review at {self.review_file}
+   - Read the development report at {self.dev_report_file}
+   - Read the validation report at {self.validation_file} to confirm validation has passed
+
 2. Only proceed if validation shows "VALIDATION: PASSED"
-3. Run 'git diff {self.compare_cmd}' to see all changes
+
+3. Run these commands to understand the changes fully:
+   - git diff {self.compare_cmd} --name-only  (to see which files changed)
+   - git diff {self.compare_cmd}  (to see the actual changes)
+   - git log -1 --pretty=format:"%s%n%n%b"  (to see the commit message)
+
 4. Create a comprehensive PR description including:
    - Summary of changes
-   - List of issues fixed
+   - List of specific issues fixed (from the review)
+   - Implementation details (from the dev report)
+   - Validation results (from the validation report)
    - Testing performed
    - Any known limitations or future work
 
 Follow these steps:
-1. First, check if validation has passed. Only proceed if it shows "VALIDATION: PASSED"
-2. Understand the changes by running git commands to analyze what has changed
-3. Generate a PR description with the following sections:
+1. First, read all reports thoroughly to gather complete context
+
+2. Next, check if validation has passed. Only proceed if it shows "VALIDATION: PASSED"
+
+3. Run the git commands listed above to analyze what has changed
+
+4. Generate a PR description with the following sections:
    ## Changes
    [Summary of what was changed and why]
-   
+
    ## Issues Addressed
-   [List of specific issues that were fixed]
-   
+   [List of specific issues that were fixed, sourced from the review report]
+
+   ## Implementation Details
+   [Key implementation decisions and approaches from the dev report]
+
+   ## Validation
+   [Summary of validation results]
+
    ## Testing
    [Summary of tests performed]
-   
+
    ## Notes
    [Any other information or future considerations]
 
-4. Push the branch and create the PR using these commands:
-   - Push branch: git push -u origin {self.branch}
-   - Create PR: gh pr create --base {self.base_branch} --head {self.branch} --title "{title}" --body "$PR_DESCRIPTION"
+5. Push the branch and create the PR using these commands:
+   - git push -u origin {self.branch}
+   - Create a PR description file: echo "$PR_DESCRIPTION" > pr_desc.md
+   - Create PR: gh pr create --base {self.base_branch} --head {self.branch} --title "{title}" --body-file pr_desc.md
 
 Make sure the PR description is thorough yet concise, focusing on what reviewers need to know.
 Include the PR URL at the end of your report.
