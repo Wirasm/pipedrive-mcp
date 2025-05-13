@@ -159,6 +159,8 @@ Remember to:
 ** After the tests pass, stage the changes and write a clear commit message. DO NOT COMMIT to allow the user to review the files.**
 
 Let's approach this methodically, exploring the codebase first before implementing anything.
+
+When the PRP is successfully completed, mark it completed by moving it to the completed directory. PRPs/completed
 """
 
     if interactive:

@@ -322,6 +322,33 @@ If you encounter test failures:
 - **MCP Tools**: Format docstrings with newlines between parameters for better readability, following the pattern in `ai_docs/mcp_example.md`
 - **Migration Guide**: See `MIGRATION_GUIDE.md` for details on the new feature registry system
 
+## MCP Tool Documentation Standards
+
+IMPORTANT: Follow these standards for all MCP tool implementations, as docstrings and type hints are used by the MCP protocol to generate tool schemas for clients:
+
+1. **Docstring Format**: 
+   - Begin with a one-line summary of what the tool does
+   - Follow with a detailed description of the tool's purpose
+   - Include a "Format requirements" section for parameters with specific formats
+   - Provide a complete usage example
+   - Document each parameter with clear descriptions and format requirements
+   - End with information about what the tool returns
+
+2. **Type Hints**:
+   - Use accurate type hints that reflect the expected parameter types
+   - Use Optional[type] for optional parameters
+   - Use appropriate return type annotations
+
+3. **Parameter Naming**:
+   - For numeric IDs: Use consistent naming conventions (e.g., `entity_id`)
+   - Document format requirements in the parameter description
+   - Always specify format examples for complex types
+
+4. **Error Handling**:
+   - Validate inputs early and provide clear error messages
+   - Include expected format and examples in error messages
+   - Return consistent error responses with the format_tool_response utility
+
 ## Using Subagents for Research
 
 When tackling complex problems, use subagents to explore different aspects of the codebase simultaneously:
