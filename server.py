@@ -54,6 +54,34 @@ from pipedrive.api.features.deals.tools.deal_product_delete_tool import (
     delete_product_from_deal_in_pipedrive,
 )
 
+# Organization tools
+from pipedrive.api.features.organizations.tools.organization_create_tool import (
+    create_organization_in_pipedrive,
+)
+from pipedrive.api.features.organizations.tools.organization_get_tool import (
+    get_organization_from_pipedrive,
+)
+from pipedrive.api.features.organizations.tools.organization_list_tool import (
+    list_organizations_from_pipedrive,
+)
+from pipedrive.api.features.organizations.tools.organization_search_tool import (
+    search_organizations_in_pipedrive,
+)
+from pipedrive.api.features.organizations.tools.organization_update_tool import (
+    update_organization_in_pipedrive,
+)
+from pipedrive.api.features.organizations.tools.organization_delete_tool import (
+    delete_organization_from_pipedrive,
+)
+
+# Organization follower tools
+from pipedrive.api.features.organizations.tools.organization_follower_add_tool import (
+    add_follower_to_organization_in_pipedrive,
+)
+from pipedrive.api.features.organizations.tools.organization_follower_delete_tool import (
+    delete_follower_from_organization_in_pipedrive,
+)
+
 # Item Search tools
 from pipedrive.api.features.item_search.tools.item_search_tool import (
     search_items_in_pipedrive,

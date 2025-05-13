@@ -2,6 +2,7 @@ Please analyze the Pipedrive MCP project structure to get a comprehensive unders
 
 First, get an overview of the project structure:
 
+Run this exact command
 ```bash
 tree
 ```
@@ -23,7 +24,7 @@ Now, read the following critical files to understand the project:
    - pipedrive/api/features/shared/utils.py
    - pipedrive/api/features/shared/conversion/id_conversion.py
 
-Use the Task tool to examine any other files that look important based on your initial analysis.
+Use the Read tool to examine any other files that look important based on your initial analysis.
 
 After studying these files, please provide:
 
