@@ -8,6 +8,7 @@ from pipedrive.api.features.deals.client.deal_client import DealClient
 from pipedrive.api.features.item_search.client.item_search_client import (
     ItemSearchClient,
 )
+from pipedrive.api.features.leads.client.lead_client import LeadClient
 from pipedrive.api.features.organizations.client.organization_client import (
     OrganizationClient,
 )
@@ -38,6 +39,7 @@ class PipedriveClient:
         self.deals = DealClient(self.base_client)
         self.organizations = OrganizationClient(self.base_client)
         self.item_search = ItemSearchClient(self.base_client)
+        self.lead_client = LeadClient(self.base_client)
 
         logger.debug("PipedriveClient initialized.")
 
@@ -373,3 +375,132 @@ class PipedriveClient:
         return await self.organizations.delete_follower(
             organization_id=organization_id, follower_id=follower_id
         )
+    
+    # --- Lead Methods (forwarding to lead client) ---
+    
+    async def create_lead(
+        self,
+        title: str,
+        amount: Optional[float] = None,
+        currency: str = "USD",
+        person_id: Optional[int] = None,
+        organization_id: Optional[int] = None,
+        owner_id: Optional[int] = None,
+        label_ids: Optional[List[str]] = None,
+        expected_close_date: Optional[str] = None,
+        visible_to: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Forward to lead client create_lead method"""
+        return await self.lead_client.create_lead(
+            title=title,
+            amount=amount,
+            currency=currency,
+            person_id=person_id,
+            organization_id=organization_id,
+            owner_id=owner_id,
+            label_ids=label_ids,
+            expected_close_date=expected_close_date,
+            visible_to=visible_to,
+        )
+    
+    async def get_lead(
+        self,
+        lead_id: str,
+    ) -> Dict[str, Any]:
+        """Forward to lead client get_lead method"""
+        return await self.lead_client.get_lead(
+            lead_id=lead_id,
+        )
+    
+    async def update_lead(
+        self,
+        lead_id: str,
+        title: Optional[str] = None,
+        amount: Optional[float] = None,
+        currency: Optional[str] = None,
+        person_id: Optional[int] = None,
+        organization_id: Optional[int] = None,
+        owner_id: Optional[int] = None,
+        label_ids: Optional[List[str]] = None,
+        expected_close_date: Optional[str] = None,
+        visible_to: Optional[int] = None,
+        is_archived: Optional[bool] = None,
+        was_seen: Optional[bool] = None,
+        channel: Optional[int] = None,
+        channel_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Forward to lead client update_lead method"""
+        return await self.lead_client.update_lead(
+            lead_id=lead_id,
+            title=title,
+            amount=amount,
+            currency=currency,
+            person_id=person_id,
+            organization_id=organization_id,
+            owner_id=owner_id,
+            label_ids=label_ids,
+            expected_close_date=expected_close_date,
+            visible_to=visible_to,
+            is_archived=is_archived,
+            was_seen=was_seen,
+            channel=channel,
+            channel_id=channel_id,
+        )
+    
+    async def delete_lead(self, lead_id: str) -> Dict[str, Any]:
+        """Forward to lead client delete_lead method"""
+        return await self.lead_client.delete_lead(lead_id=lead_id)
+    
+    async def list_leads(
+        self,
+        limit: int = 100,
+        start: Optional[int] = None,
+        archived_status: Optional[str] = None,
+        owner_id: Optional[int] = None,
+        person_id: Optional[int] = None,
+        organization_id: Optional[int] = None,
+        filter_id: Optional[int] = None,
+        sort: Optional[str] = None,
+    ) -> Tuple[List[Dict[str, Any]], int, int]:
+        """Forward to lead client list_leads method"""
+        return await self.lead_client.list_leads(
+            limit=limit,
+            start=start,
+            archived_status=archived_status,
+            owner_id=owner_id,
+            person_id=person_id,
+            organization_id=organization_id,
+            filter_id=filter_id,
+            sort=sort,
+        )
+    
+    async def search_leads(
+        self,
+        term: str,
+        fields: Optional[List[str]] = None,
+        exact_match: bool = False,
+        person_id: Optional[int] = None,
+        organization_id: Optional[int] = None,
+        include_fields: Optional[List[str]] = None,
+        limit: int = 100,
+        cursor: Optional[str] = None,
+    ) -> Tuple[List[Dict[str, Any]], Optional[str]]:
+        """Forward to lead client search_leads method"""
+        return await self.lead_client.search_leads(
+            term=term,
+            fields=fields,
+            exact_match=exact_match,
+            person_id=person_id,
+            organization_id=organization_id,
+            include_fields=include_fields,
+            limit=limit,
+            cursor=cursor,
+        )
+    
+    async def get_lead_labels(self) -> List[Dict[str, Any]]:
+        """Forward to lead client get_lead_labels method"""
+        return await self.lead_client.get_lead_labels()
+    
+    async def get_lead_sources(self) -> List[Dict[str, Any]]:
+        """Forward to lead client get_lead_sources method"""
+        return await self.lead_client.get_lead_sources()

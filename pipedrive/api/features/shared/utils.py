@@ -1,12 +1,23 @@
 import json
 from typing import Any, List, Optional
+from datetime import date, datetime
+
+
+class DateTimeEncoder(json.JSONEncoder):
+    """Custom JSON encoder that can handle dates and datetimes."""
+    def default(self, obj):
+        if isinstance(obj, (date, datetime)):
+            return obj.isoformat()
+        return super().default(obj)
 
 
 def format_tool_response(
     success: bool, data: Optional[Any] = None, error_message: Optional[str] = None
 ) -> str:
     return json.dumps(
-        {"success": success, "data": data, "error": error_message}, indent=2
+        {"success": success, "data": data, "error": error_message}, 
+        indent=2,
+        cls=DateTimeEncoder
     )
 
 
