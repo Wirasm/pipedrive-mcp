@@ -1,0 +1,10 @@
+{
+  "features": {
+    "activities": true,
+    "deals": true,
+    "item_search": true,
+    "leads": true,
+    "organizations": true,
+    "persons": true
+  }
+}

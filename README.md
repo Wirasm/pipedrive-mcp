@@ -4,13 +4,52 @@ A Model Control Protocol (MCP) server implementation for interacting with the Pi
 
 ## Features
 
-- Person management (create, read, update, delete, search)
+This MCP server implements the following Pipedrive features:
+
+- **Persons** - Create, read, update, delete, and search person entities
+- **Organizations** - Manage organizations and their followers
+- **Deals** - Create, manage, and search deals, including deal products
+- **Leads** - Create, manage, and search leads including lead labels
+- **Activities** - Track and manage activities and activity types
+- **Item Search** - Global and field-specific search across Pipedrive entities
+
+Additional features:
+
 - Async API client with comprehensive error handling
+- Feature flags to enable/disable specific modules
 - Vertical slice architecture for maintainability
 - Comprehensive test coverage
 
+## Quick Start with Claude Code
+
+The fastest way to get started with the Pipedrive MCP Server in Claude Code:
+
+```bash
+# Install uv (if not already installed)
+curl -sSf https://install.python-uv.org/uv | python3 -
+
+# Clone the repository
+git clone https://github.com/your-username/pipedrive-mcp.git
+cd pipedrive-mcp
+
+# Install dependencies
+uv sync
+
+# Create .env file with your Pipedrive credentials
+cat > .env << EOF
+PIPEDRIVE_API_TOKEN=your_api_token
+PIPEDRIVE_COMPANY_DOMAIN=your_company_domain
+EOF
+
+# Install the MCP server to Claude Desktop
+mcp install server.py
+```
+
+Then open Claude Desktop and start managing your Pipedrive CRM!
+
 ## Available MCP Tools
 
+### Person Tools
 | Tool Name | Description |
 | --- | --- |
 | `create_person_in_pipedrive` | Creates a new person in Pipedrive CRM |
@@ -18,6 +57,61 @@ A Model Control Protocol (MCP) server implementation for interacting with the Pi
 | `update_person_in_pipedrive` | Updates an existing person in Pipedrive |
 | `delete_person_from_pipedrive` | Deletes a person from Pipedrive |
 | `search_persons_in_pipedrive` | Searches for persons by name, email, phone, etc. |
+
+### Organization Tools
+| Tool Name | Description |
+| --- | --- |
+| `create_organization_in_pipedrive` | Creates a new organization in Pipedrive |
+| `get_organization_from_pipedrive` | Retrieves organization details by ID |
+| `update_organization_in_pipedrive` | Updates an existing organization |
+| `delete_organization_from_pipedrive` | Deletes an organization |
+| `list_organizations_in_pipedrive` | Lists organizations with filtering and pagination |
+| `search_organizations_in_pipedrive` | Searches for organizations by name or other criteria |
+| `add_follower_to_organization` | Adds a user as a follower of an organization |
+| `delete_follower_from_organization` | Removes a follower from an organization |
+
+### Deal Tools
+| Tool Name | Description |
+| --- | --- |
+| `create_deal_in_pipedrive` | Creates a new deal |
+| `get_deal_from_pipedrive` | Retrieves deal details by ID |
+| `update_deal_in_pipedrive` | Updates an existing deal |
+| `delete_deal_from_pipedrive` | Deletes a deal |
+| `list_deals_in_pipedrive` | Lists deals with filtering and pagination |
+| `search_deals_in_pipedrive` | Searches for deals by title or other criteria |
+| `add_product_to_deal` | Adds a product to a deal |
+| `update_deal_product` | Updates a product associated with a deal |
+| `delete_product_from_deal` | Removes a product from a deal |
+
+### Lead Tools
+| Tool Name | Description |
+| --- | --- |
+| `create_lead_in_pipedrive` | Creates a new lead |
+| `get_lead_from_pipedrive` | Retrieves lead details by ID |
+| `update_lead_in_pipedrive` | Updates an existing lead |
+| `delete_lead_from_pipedrive` | Deletes a lead |
+| `list_leads_in_pipedrive` | Lists leads with filtering and pagination |
+| `search_leads_in_pipedrive` | Searches for leads by title or other criteria |
+| `get_lead_labels` | Retrieves available lead labels |
+| `get_lead_sources` | Retrieves available lead sources |
+
+### Item Search Tools
+| Tool Name | Description |
+| --- | --- |
+| `search_items_in_pipedrive` | Global search across multiple item types |
+| `search_field_in_pipedrive` | Searches for specific field values in a given entity type |
+
+## Feature Modules
+
+The project follows a vertical slice architecture with each feature having its own directory:
+
+- **persons/** - Person entity management
+- **organizations/** - Organization entity management
+- **deals/** - Deal management including products
+- **leads/** - Lead management including labels
+- **activities/** - Activity tracking and management
+- **item_search/** - Cross-entity search functionality
+- **shared/** - Common utilities used across features
 
 ## Getting Started
 
@@ -73,6 +167,14 @@ TRANSPORT=sse   # "sse" or "stdio"
 # Security Settings
 CONTAINER_MODE=false
 VERIFY_SSL=true  # Set to "false" if you encounter SSL certificate issues (development only)
+
+# Feature Flags (optional)
+PIPEDRIVE_FEATURE_PERSONS=true
+PIPEDRIVE_FEATURE_DEALS=true
+PIPEDRIVE_FEATURE_ORGANIZATIONS=true
+PIPEDRIVE_FEATURE_LEADS=true
+PIPEDRIVE_FEATURE_ITEM_SEARCH=true
+PIPEDRIVE_FEATURE_ACTIVITIES=true
 ```
 
 ### Run Tests
@@ -145,19 +247,6 @@ To use this server with Claude Desktop, register the MCP server in Claude deskto
 - Endpoint URL: http://localhost:8152
 - Auth: None
 
-If you experience SSL certificate errors, you can disable SSL verification (only for development environments):
-```bash
-docker run -d -p 8152:8152 \
-  -e PIPEDRIVE_API_TOKEN="your-actual-pipedrive-api-token" \
-  -e PIPEDRIVE_COMPANY_DOMAIN="your-company-subdomain" \
-  -e PORT=8152 \
-  -e TRANSPORT=sse \
-  -e CONTAINER_MODE=true \
-  -e VERIFY_SSL=false \
-  --name pipedrive-mcp-server \
-  pipedrive-mcp
-```
-
 ## Project Structure
 
 The project follows a vertical slice architecture where code is organized by features rather than by technical layers:
@@ -166,13 +255,23 @@ The project follows a vertical slice architecture where code is organized by fea
 pipedrive/
 ├── api/
 │   ├── base_client.py                   # Core HTTP client
+│   ├── pipedrive_api_error.py           # API error handling
+│   ├── pipedrive_client.py              # Main client facade
+│   ├── pipedrive_context.py             # Client lifecycle management
 │   ├── features/
+│   │   ├── tool_registry.py             # Feature registry system
+│   │   ├── tool_decorator.py            # Feature-aware tool decorator
 │   │   ├── persons/                     # Person feature module
 │   │   │   ├── client/                  # Person API client
 │   │   │   ├── models/                  # Person domain models
 │   │   │   └── tools/                   # Person MCP tools
+│   │   ├── organizations/               # Organization feature module
+│   │   ├── deals/                       # Deal feature module
+│   │   ├── leads/                       # Lead feature module
+│   │   ├── activities/                  # Activity feature module
+│   │   ├── item_search/                 # Search feature module
 │   │   └── shared/                      # Shared utilities
-│   └── pipedrive_client.py              # Main client facade
+├── feature_config.py                    # Feature configuration management
 └── mcp_instance.py                      # MCP server configuration
 ```
 
