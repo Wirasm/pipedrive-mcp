@@ -4,11 +4,14 @@ import httpx
 
 from log_config import logger
 from pipedrive.api.base_client import BaseClient
-from pipedrive.api.features.persons.client.person_client import PersonClient
 from pipedrive.api.features.deals.client.deal_client import DealClient
-from pipedrive.api.features.organizations.client.organization_client import OrganizationClient
-from pipedrive.api.features.item_search.client.item_search_client import ItemSearchClient
-from pipedrive.api.features.leads.client.lead_client import LeadClient
+from pipedrive.api.features.item_search.client.item_search_client import (
+    ItemSearchClient,
+)
+from pipedrive.api.features.organizations.client.organization_client import (
+    OrganizationClient,
+)
+from pipedrive.api.features.persons.client.person_client import PersonClient
 
 
 class PipedriveClient:
@@ -35,12 +38,11 @@ class PipedriveClient:
         self.deals = DealClient(self.base_client)
         self.organizations = OrganizationClient(self.base_client)
         self.item_search = ItemSearchClient(self.base_client)
-        self.leads = LeadClient(self.base_client)
 
         logger.debug("PipedriveClient initialized.")
-    
+
     # --- Person Methods (forwarding to persons client) ---
-    
+
     async def create_person(
         self,
         name: str,
@@ -63,7 +65,7 @@ class PipedriveClient:
             add_time=add_time,
             custom_fields=custom_fields,
         )
-    
+
     async def get_person(
         self,
         person_id: int,
@@ -76,7 +78,7 @@ class PipedriveClient:
             include_fields=include_fields,
             custom_fields_keys=custom_fields_keys,
         )
-    
+
     async def update_person(
         self,
         person_id: int,
@@ -99,11 +101,11 @@ class PipedriveClient:
             visible_to=visible_to,
             custom_fields=custom_fields,
         )
-    
+
     async def delete_person(self, person_id: int) -> Dict[str, Any]:
         """Forward to persons client delete_person method"""
         return await self.persons.delete_person(person_id=person_id)
-    
+
     async def list_persons(
         self,
         limit: int = 100,
@@ -221,9 +223,9 @@ class PipedriveClient:
     async def delete_deal(self, deal_id: int) -> Dict[str, Any]:
         """Forward to deals client delete_deal method"""
         return await self.deals.delete_deal(deal_id=deal_id)
-        
+
     # --- Item Search Methods (forwarding to item_search client) ---
-    
+
     async def search_items(
         self,
         term: str,
@@ -246,7 +248,7 @@ class PipedriveClient:
             limit=limit,
             cursor=cursor,
         )
-    
+
     async def search_field(
         self,
         term: str,
@@ -265,9 +267,9 @@ class PipedriveClient:
             limit=limit,
             cursor=cursor,
         )
-        
+
     # --- Organization Methods (forwarding to organizations client) ---
-    
+
     async def create_organization(
         self,
         name: str,
@@ -288,7 +290,7 @@ class PipedriveClient:
             add_time=add_time,
             custom_fields=custom_fields,
         )
-    
+
     async def get_organization(
         self,
         organization_id: int,
@@ -301,7 +303,7 @@ class PipedriveClient:
             include_fields=include_fields,
             custom_fields_keys=custom_fields_keys,
         )
-    
+
     async def update_organization(
         self,
         organization_id: int,
@@ -322,11 +324,13 @@ class PipedriveClient:
             label_ids=label_ids,
             custom_fields=custom_fields,
         )
-    
+
     async def delete_organization(self, organization_id: int) -> Dict[str, Any]:
         """Forward to organizations client delete_organization method"""
-        return await self.organizations.delete_organization(organization_id=organization_id)
-    
+        return await self.organizations.delete_organization(
+            organization_id=organization_id
+        )
+
     async def list_organizations(
         self,
         limit: int = 100,
@@ -353,25 +357,19 @@ class PipedriveClient:
             updated_since=updated_since,
             updated_until=updated_until,
         )
-    
+
     async def add_organization_follower(
-        self,
-        organization_id: int,
-        user_id: int
+        self, organization_id: int, user_id: int
     ) -> Dict[str, Any]:
         """Forward to organizations client add_follower method"""
         return await self.organizations.add_follower(
-            organization_id=organization_id,
-            user_id=user_id
+            organization_id=organization_id, user_id=user_id
         )
-    
+
     async def delete_organization_follower(
-        self,
-        organization_id: int,
-        follower_id: int
+        self, organization_id: int, follower_id: int
     ) -> Dict[str, Any]:
         """Forward to organizations client delete_follower method"""
         return await self.organizations.delete_follower(
-            organization_id=organization_id,
-            follower_id=follower_id
+            organization_id=organization_id, follower_id=follower_id
         )
