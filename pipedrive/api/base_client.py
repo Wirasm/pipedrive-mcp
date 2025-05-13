@@ -5,6 +5,7 @@ import httpx
 
 from log_config import logger
 from pipedrive.api.pipedrive_api_error import PipedriveAPIError
+from pipedrive.pipedrive_config import settings
 
 
 class BaseClient:
@@ -21,6 +22,8 @@ class BaseClient:
             raise ValueError("httpx.AsyncClient is required.")
 
         self.api_token = api_token
+        # Use URL construction consistent with settings module
+        self.company_domain = company_domain
         self.base_url = f"https://{company_domain}.pipedrive.com/api/v2"
         self.http_client = http_client
         logger.debug("BaseClient initialized.")
