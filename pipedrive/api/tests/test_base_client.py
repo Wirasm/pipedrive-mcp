@@ -34,7 +34,8 @@ class TestBaseClient:
         )
         
         assert client.api_token == "test_token"
-        assert client.base_url == "https://test.pipedrive.com/api/v2"
+        assert client.domain == "https://test.pipedrive.com"
+        assert client.api_version == "v2"  # Default version should be v2
         assert client.http_client == mock_http_client
     
     def test_init_with_invalid_params(self, mock_http_client):
@@ -63,9 +64,30 @@ class TestBaseClient:
                 http_client=None
             )
     
+    def test_get_url(self, mock_http_client):
+        """Test URL construction with different API versions"""
+        client = BaseClient(
+            api_token="test_token",
+            company_domain="test",
+            http_client=mock_http_client
+        )
+        
+        # Test v2 URL construction (default)
+        assert client.get_url("/deals") == "https://test.pipedrive.com/api/v2/deals"
+        
+        # Test v1 URL construction
+        assert client.get_url("/leads", "v1") == "https://test.pipedrive.com/v1/leads"
+        
+        # Test explicitly specifying v2
+        assert client.get_url("/persons", "v2") == "https://test.pipedrive.com/api/v2/persons"
+        
+        # Test invalid version
+        with pytest.raises(ValueError, match="Unsupported API version"):
+            client.get_url("/test", "v3")
+    
     @pytest.mark.asyncio
-    async def test_request_success(self, mock_http_client):
-        """Test successful API request"""
+    async def test_request_success_default_version(self, mock_http_client):
+        """Test successful API request with default version (v2)"""
         client = BaseClient(
             api_token="test_token",
             company_domain="test",
@@ -86,13 +108,67 @@ class TestBaseClient:
         mock_http_client.request.assert_called_once()
         call_args = mock_http_client.request.call_args
         assert call_args[0][0] == "GET"  # Method
-        assert call_args[0][1] == "https://test.pipedrive.com/api/v2/test"  # URL
+        assert call_args[0][1] == "https://test.pipedrive.com/api/v2/test"  # URL with v2
         
         # Check query parameters
         assert call_args[1]["params"] == {"api_token": "test_token", "param1": "value1"}
         
         # Check JSON payload
         assert call_args[1]["json"] == {"field1": "value1"}
+    
+    @pytest.mark.asyncio
+    async def test_request_success_v1_version(self, mock_http_client):
+        """Test successful API request with v1 version"""
+        client = BaseClient(
+            api_token="test_token",
+            company_domain="test",
+            http_client=mock_http_client
+        )
+        
+        result = await client.request(
+            method="GET",
+            endpoint="/leads",
+            query_params={"param1": "value1"},
+            json_payload={"field1": "value1"},
+            version="v1"  # Explicitly use v1
+        )
+        
+        # Check result
+        assert result == {"success": True, "data": {"id": 123, "name": "Test"}}
+        
+        # Check that client.request was called with correct parameters
+        mock_http_client.request.assert_called_once()
+        call_args = mock_http_client.request.call_args
+        assert call_args[0][0] == "GET"  # Method
+        assert call_args[0][1] == "https://test.pipedrive.com/v1/leads"  # URL with v1
+        
+        # Check query parameters
+        assert call_args[1]["params"] == {"api_token": "test_token", "param1": "value1"}
+        
+        # Check JSON payload
+        assert call_args[1]["json"] == {"field1": "value1"}
+    
+    @pytest.mark.asyncio
+    async def test_request_with_changed_default_version(self, mock_http_client):
+        """Test request with a changed default API version"""
+        client = BaseClient(
+            api_token="test_token",
+            company_domain="test",
+            http_client=mock_http_client
+        )
+        
+        # Change default API version to v1
+        client.api_version = "v1"
+        
+        result = await client.request(
+            method="GET",
+            endpoint="/leads"
+            # No version specified, should use default
+        )
+        
+        # Check that URL used the correct version
+        call_args = mock_http_client.request.call_args
+        assert call_args[0][1] == "https://test.pipedrive.com/v1/leads"  # URL with v1
     
     @pytest.mark.asyncio
     async def test_request_api_error(self, mock_http_client):

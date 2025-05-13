@@ -22,11 +22,36 @@ class BaseClient:
             raise ValueError("httpx.AsyncClient is required.")
 
         self.api_token = api_token
-        # Use URL construction consistent with settings module
         self.company_domain = company_domain
-        self.base_url = f"https://{company_domain}.pipedrive.com/api/v2"
+        # Store the domain for more flexible URL construction
+        self.domain = f"https://{company_domain}.pipedrive.com"
+        # Default to v2 for backward compatibility
+        self.api_version = "v2"
         self.http_client = http_client
         logger.debug("BaseClient initialized.")
+    
+    def get_url(self, endpoint: str, version: Optional[str] = None) -> str:
+        """
+        Construct URL with proper version prefix.
+        
+        Args:
+            endpoint: API endpoint (e.g., /deals)
+            version: API version to use (v1 or v2), defaults to client's default version
+            
+        Returns:
+            Fully qualified URL
+            
+        Raises:
+            ValueError: If an unsupported API version is specified
+        """
+        version = version or self.api_version
+        
+        if version == "v2":
+            return f"{self.domain}/api/v2{endpoint}"
+        elif version == "v1":
+            return f"{self.domain}/v1{endpoint}"
+        else:
+            raise ValueError(f"Unsupported API version: {version}")
 
     async def request(
         self,
@@ -34,23 +59,26 @@ class BaseClient:
         endpoint: str,
         query_params: Optional[Dict[str, Any]] = None,
         json_payload: Optional[Dict[str, Any]] = None,
+        version: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
-        Make a request to the Pipedrive API
+        Make a request to the Pipedrive API with version control
         
         Args:
             method: HTTP method (GET, POST, PATCH, DELETE)
             endpoint: API endpoint (e.g., /persons)
             query_params: URL query parameters
             json_payload: JSON request body
+            version: API version to use (v1 or v2), defaults to client's default version
             
         Returns:
             API response data
             
         Raises:
             PipedriveAPIError: If the API request fails
+            ValueError: If an unsupported API version is specified
         """
-        url = f"{self.base_url}{endpoint}"
+        url = self.get_url(endpoint, version)
 
         params_to_send = {"api_token": self.api_token}
         if query_params:

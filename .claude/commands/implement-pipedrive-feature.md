@@ -6,7 +6,7 @@ Please implement the $ARGUMENTS feature for the Pipedrive MCP server following t
 2. Read the corresponding API documentation in ai_docs/ directory (e.g., ai_docs/pipedrive_deals.md)
 3. MIRROR the structure of existing features (especially persons/) and adapt for this feature
 4. Follow the vertical slice architecture pattern:
-   - Create models with Pydantic validation
+   - Create models with Pydanticv2 validation
    - Implement client methods for API interaction
    - Build MCP tools for Claude to use
    - Write comprehensive tests
