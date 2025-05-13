@@ -254,6 +254,7 @@ If you encounter test failures:
 - **Templates**: See `.claude/guides/templates.md` for code templates
 - **Edge Cases**: See `.claude/guides/edge-cases.md` for Pipedrive API quirks
 - **Development Guide**: See `.claude/guides/dev-guide.md` for architecture details
+- **MCP Tools**: Format docstrings with newlines between parameters for better readability, following the pattern in `ai_docs/mcp_example.md`
 
 ## Using Subagents for Research
 
