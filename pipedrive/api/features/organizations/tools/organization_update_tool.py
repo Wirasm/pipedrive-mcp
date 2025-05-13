@@ -77,7 +77,8 @@ async def update_organization_in_pipedrive(
         if owner_id is not None:
             update_data["owner_id"] = owner_id
         if address is not None and address != "":
-            update_data["address"] = address
+            # Convert address string to dictionary format for the API
+            update_data["address"] = {"value": address}
         if visible_to is not None:
             update_data["visible_to"] = visible_to
 

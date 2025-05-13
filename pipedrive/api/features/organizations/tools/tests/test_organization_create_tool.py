@@ -60,7 +60,7 @@ class TestCreateOrganizationTool:
         mock_pipedrive_client.organizations.create_organization.assert_called_once()
         call_kwargs = mock_pipedrive_client.organizations.create_organization.call_args.kwargs
         assert call_kwargs["name"] == "Test Organization"
-        assert call_kwargs["address"] == "123 Main St"
+        assert call_kwargs["address"] == {"value": "123 Main St"}
         assert call_kwargs["visible_to"] == 3
     
     @pytest.mark.asyncio

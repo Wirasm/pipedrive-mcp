@@ -63,8 +63,11 @@ async def create_organization_in_pipedrive(
 
     try:
         # Create Organization model instance with validation
+        # Convert address string to dictionary format for the API
+        address_dict = {"value": address} if address else None
+        
         organization = Organization(
-            name=name, owner_id=owner_id, address=address, visible_to=visible_to
+            name=name, owner_id=owner_id, address=address_dict, visible_to=visible_to
         )
 
         # Convert model to API-compatible dict

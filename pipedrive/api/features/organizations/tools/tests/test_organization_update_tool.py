@@ -63,7 +63,7 @@ class TestUpdateOrganizationTool:
         mock_pipedrive_client.organizations.update_organization.assert_called_once_with(
             organization_id=123,
             name="Updated Organization",
-            address="456 New Street",
+            address={"value": "456 New Street"},
             owner_id=789,
             visible_to=3
         )

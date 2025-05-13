@@ -12,12 +12,12 @@ class TestOrganization:
         org = Organization(
             name="Test Organization",
             owner_id=123,
-            address="123 Test St, Test City",
+            address={"value": "123 Test St, Test City"},
             visible_to=1
         )
         assert org.name == "Test Organization"
         assert org.owner_id == 123
-        assert org.address == "123 Test St, Test City"
+        assert org.address == {"value": "123 Test St, Test City"}
         assert org.visible_to == 1
 
     def test_organization_empty_name_validation_error(self):
@@ -35,7 +35,7 @@ class TestOrganization:
         org = Organization(
             name="Test Organization",
             owner_id=123,
-            address="123 Test St, Test City",
+            address={"value": "123 Test St, Test City"},
             visible_to=1,
             id=456
         )
@@ -44,7 +44,7 @@ class TestOrganization:
         assert "name" in api_dict
         assert api_dict["name"] == "Test Organization"
         assert api_dict["owner_id"] == 123
-        assert api_dict["address"] == "123 Test St, Test City"
+        assert api_dict["address"] == {"value": "123 Test St, Test City"}
         assert api_dict["visible_to"] == 1
         # id should be excluded
         assert "id" not in api_dict
@@ -65,6 +65,6 @@ class TestOrganization:
         assert org.id == 789
         assert org.name == "API Organization"
         assert org.owner_id == 456
-        assert org.address == "456 API St, API City"
+        assert org.address == {"value": "456 API St, API City"}
         assert org.visible_to == 2
         assert org.label_ids == [1, 2, 3]

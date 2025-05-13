@@ -6,7 +6,7 @@ class Organization(BaseModel):
     """Organization entity model with Pydantic validation"""
     name: str
     owner_id: Optional[int] = None
-    address: Optional[str] = None
+    address: Optional[Dict[str, str]] = None  # Address should be a dictionary for the API
     visible_to: Optional[int] = None
     id: Optional[int] = None
     label_ids: Optional[List[int]] = Field(default_factory=list)
@@ -26,10 +26,17 @@ class Organization(BaseModel):
         org_data = {
             "name": data.get("name", ""),
             "owner_id": data.get("owner_id"),
-            "address": data.get("address"),
             "visible_to": data.get("visible_to"),
             "id": data.get("id"),
         }
+        
+        # Process address - convert from string to dict if needed
+        address = data.get("address")
+        if address:
+            if isinstance(address, str):
+                org_data["address"] = {"value": address}
+            else:
+                org_data["address"] = address
         
         # Process label IDs
         if "label_ids" in data and data["label_ids"]:
