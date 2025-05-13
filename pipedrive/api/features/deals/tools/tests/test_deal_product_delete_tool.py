@@ -70,7 +70,7 @@ class TestDeleteProductFromDealTool:
 
         # Verify error response
         assert response["success"] is False
-        assert "Invalid deal_id format" in response["error"]
+        assert "deal_id must be a numeric string" in response["error"]
 
         # Verify that delete_product_from_deal was not called
         delete_product_mock = mock_context.request_context.lifespan_context.pipedrive_client.deals.delete_product_from_deal
@@ -89,7 +89,7 @@ class TestDeleteProductFromDealTool:
 
         # Verify error response
         assert response["success"] is False
-        assert "Invalid product_attachment_id format" in response["error"]
+        assert "product_attachment_id must be a numeric string" in response["error"]
 
         # Verify that delete_product_from_deal was not called
         delete_product_mock = mock_context.request_context.lifespan_context.pipedrive_client.deals.delete_product_from_deal

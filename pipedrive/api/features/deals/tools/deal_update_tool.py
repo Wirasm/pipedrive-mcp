@@ -4,15 +4,15 @@ from mcp.server.fastmcp import Context
 from pydantic import ValidationError
 
 from log_config import logger
-from pipedrive.api.features.deals.models.deal import Deal
-from pipedrive.api.features.shared.conversion.id_conversion import convert_id_string
-from pipedrive.api.features.shared.utils import format_tool_response
+from pipedrive.api.features.deals.models.deal import Deal, VISIBILITY_PRIVATE, VISIBILITY_SHARED, VISIBILITY_TEAM, VISIBILITY_ENTIRE_COMPANY
+from pipedrive.api.features.shared.conversion.id_conversion import convert_id_string, validate_date_string
+from pipedrive.api.features.shared.utils import format_tool_response, format_validation_error
 from pipedrive.api.pipedrive_api_error import PipedriveAPIError
 from pipedrive.api.pipedrive_context import PipedriveMCPContext
 from pipedrive.mcp_instance import mcp
 
 
-@mcp.tool()
+@mcp.tool("update_deal_in_pipedrive")
 async def update_deal_in_pipedrive(
     ctx: Context,
     id_str: str,
@@ -32,25 +32,54 @@ async def update_deal_in_pipedrive(
 ) -> str:
     """Updates an existing deal in the Pipedrive CRM.
 
-    This tool requires the deal's ID and at least one field to update.
-    It can update basic information like title, value, currency,
-    as well as linked entities like person, organization, and owner.
+    This tool updates a deal identified by its ID. You must provide at least one field to update.
+    It can modify basic information like title and value, as well as the deal's relationships,
+    stage, status, and other attributes.
+    
+    Format requirements:
+    - id_str: Required numeric ID of the deal to update (e.g. "123")
+    - value: Numeric value (e.g. "1000" or "1500.50")
+    - currency: 3-letter ISO currency code (e.g. "USD", "EUR")
+    - *_id_str: Numeric ID strings (e.g. "123")
+    - expected_close_date: ISO date format YYYY-MM-DD (e.g. "2025-12-31")
+    - visible_to_str: Visibility level ID ("0"=private, "1"=shared, "3"=team, "7"=company)
+    - probability: Integer between 0-100 (e.g. "75")
+    
+    Stage and Pipeline Relationships:
+    - When updating stage_id_str and/or pipeline_id_str, ensure the stage belongs to the pipeline
+    - Changing just the pipeline_id will place the deal in the first stage of that pipeline
+    - Changing just the stage_id will update the pipeline_id automatically to match the stage's pipeline
+    
+    Status and Lost Reason:
+    - status can be "open", "won", or "lost"
+    - lost_reason can only be provided when status is "lost"
+    
+    Example usage:
+    ```
+    update_deal_in_pipedrive(
+        id_str="42",
+        title="Updated software license deal",
+        value="7500",
+        status="won",
+        stage_id_str="3"
+    )
+    ```
 
     args:
     ctx: Context
-    id_str: str - The ID of the deal to update
+    id_str: str - The ID of the deal to update (required)
     title: Optional[str] = None - The updated title of the deal
-    value: Optional[str] = None - The updated value of the deal
-    currency: Optional[str] = None - The updated currency of the deal
+    value: Optional[str] = None - The updated monetary value of the deal (numeric string)
+    currency: Optional[str] = None - The updated currency of the deal (3-letter ISO code)
     person_id_str: Optional[str] = None - The ID of the person to link to the deal
     org_id_str: Optional[str] = None - The ID of the organization to link to the deal
     status: Optional[str] = None - The updated status of the deal (open, won, lost)
     owner_id_str: Optional[str] = None - The ID of the user who owns the deal
-    stage_id_str: Optional[str] = None - The ID of the deal stage
-    pipeline_id_str: Optional[str] = None - The ID of the pipeline
+    stage_id_str: Optional[str] = None - The ID of the stage this deal belongs to
+    pipeline_id_str: Optional[str] = None - The ID of the pipeline this deal belongs to
     expected_close_date: Optional[str] = None - The expected close date (YYYY-MM-DD)
-    visible_to_str: Optional[str] = None - Visibility setting of the deal
-    probability: Optional[str] = None - Success probability percentage (0-100)
+    visible_to_str: Optional[str] = None - Visibility setting (0=private, 1=shared, 3=team, 7=company)
+    probability: Optional[str] = None - Deal success probability percentage (0-100)
     lost_reason: Optional[str] = None - Reason for losing the deal (only if status is 'lost')
     """
     logger.debug(
@@ -107,32 +136,68 @@ async def update_deal_in_pipedrive(
         logger.error(pipeline_id_error)
         return format_tool_response(False, error_message=pipeline_id_error)
 
-    visible_to, visible_to_error = convert_id_string(visible_to_str, "visible_to")
-    if visible_to_error:
-        logger.error(visible_to_error)
-        return format_tool_response(False, error_message=visible_to_error)
+    # Validate visible_to value if provided
+    visible_to = None
+    if visible_to_str is not None:
+        try:
+            visible_to = int(visible_to_str)
+            valid_visibility_values = {VISIBILITY_PRIVATE, VISIBILITY_SHARED, VISIBILITY_TEAM, VISIBILITY_ENTIRE_COMPANY}
+            if visible_to not in valid_visibility_values:
+                error_message = format_validation_error(
+                    "visible_to", visible_to_str, 
+                    f"Must be one of: {', '.join(map(str, valid_visibility_values))} (0=private, 1=shared, 3=team, 7=company).",
+                    "3"
+                )
+                logger.error(error_message)
+                return format_tool_response(False, error_message=error_message)
+        except ValueError:
+            error_message = format_validation_error(
+                "visible_to", visible_to_str, "Must be a valid integer.", "3"
+            )
+            logger.error(error_message)
+            return format_tool_response(False, error_message=error_message)
 
-    # Convert value string to float
+    # Validate date format
+    if expected_close_date is not None:
+        date_value, date_error = validate_date_string(expected_close_date, "expected_close_date")
+        if date_error:
+            logger.error(date_error)
+            return format_tool_response(False, error_message=date_error)
+        expected_close_date = date_value
+            
+    # Convert value string to float with improved error handling
     value_float = None
     if value is not None:
         try:
             value_float = float(value)
+            if value_float < 0:
+                error_message = format_validation_error(
+                    "deal value", value, "Must be a non-negative number.", "1000"
+                )
+                logger.error(error_message)
+                return format_tool_response(False, error_message=error_message)
         except ValueError:
-            error_message = f"Invalid deal value format: '{value}'. Must be a valid number."
+            error_message = format_validation_error(
+                "deal value", value, "Must be a valid number.", "1000"
+            )
             logger.error(error_message)
             return format_tool_response(False, error_message=error_message)
 
-    # Convert probability string to integer
+    # Convert probability string to integer with improved error handling
     probability_int = None
     if probability is not None:
         try:
             probability_int = int(probability)
             if probability_int < 0 or probability_int > 100:
-                error_message = f"Invalid probability value: {probability_int}. Must be between 0 and 100."
+                error_message = format_validation_error(
+                    "probability", probability, "Must be an integer between 0 and 100.", "75"
+                )
                 logger.error(error_message)
                 return format_tool_response(False, error_message=error_message)
         except ValueError:
-            error_message = f"Invalid probability format: '{probability}'. Must be an integer."
+            error_message = format_validation_error(
+                "probability", probability, "Must be a valid integer.", "75"
+            )
             logger.error(error_message)
             return format_tool_response(False, error_message=error_message)
 
@@ -147,16 +212,32 @@ async def update_deal_in_pipedrive(
         return format_tool_response(False, error_message=error_message)
 
     try:
-        # Validate status and lost_reason if provided
-        if status is not None and status not in ["open", "won", "lost"]:
-            error_message = f"Invalid status: '{status}'. Must be one of: open, won, lost"
-            logger.error(error_message)
-            return format_tool_response(False, error_message=error_message)
+        # Validate status and lost_reason if provided with improved error messaging
+        if status is not None:
+            valid_statuses = {"open", "won", "lost"}
+            if status not in valid_statuses:
+                error_message = format_validation_error(
+                    "status", status, f"Must be one of: {', '.join(valid_statuses)}.", "open"
+                )
+                logger.error(error_message)
+                return format_tool_response(False, error_message=error_message)
         
+            # Validate stage/pipeline consistency based on status
+            if status == "won" and stage_id_str is not None:
+                logger.debug("Deal status is 'won' - stage will be set to the final win stage of the deal's pipeline")
+            elif status == "lost" and stage_id_str is not None:
+                logger.debug("Deal status is 'lost' - stage will be set to the final lost stage of the deal's pipeline")
+        
+        # Validate lost_reason is only provided when status is 'lost'
         if lost_reason is not None and (status is None or status != "lost"):
             error_message = "Lost reason can only be provided when status is 'lost'"
             logger.error(error_message)
             return format_tool_response(False, error_message=error_message)
+            
+        # Validate stage and pipeline compatibility if both are provided
+        if stage_id is not None and pipeline_id is not None:
+            logger.debug(f"Both stage_id ({stage_id}) and pipeline_id ({pipeline_id}) provided - API will validate compatibility")
+            # Note: actual validation happens server-side since we don't have stage/pipeline mapping locally
 
         # Call the Pipedrive API
         updated_deal = await pd_mcp_ctx.pipedrive_client.deals.update_deal(

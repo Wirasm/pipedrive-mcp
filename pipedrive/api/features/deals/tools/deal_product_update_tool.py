@@ -1,17 +1,18 @@
 from typing import Optional
+from datetime import date
 
 from mcp.server.fastmcp import Context
 from pydantic import ValidationError
 
 from log_config import logger
-from pipedrive.api.features.shared.conversion.id_conversion import convert_id_string
-from pipedrive.api.features.shared.utils import format_tool_response
+from pipedrive.api.features.shared.conversion.id_conversion import convert_id_string, validate_date_string
+from pipedrive.api.features.shared.utils import format_tool_response, format_validation_error
 from pipedrive.api.pipedrive_api_error import PipedriveAPIError
 from pipedrive.api.pipedrive_context import PipedriveMCPContext
 from pipedrive.mcp_instance import mcp
 
 
-@mcp.tool()
+@mcp.tool("update_product_in_deal_in_pipedrive")
 async def update_product_in_deal_in_pipedrive(
     ctx: Context,
     id_str: str,
@@ -31,25 +32,62 @@ async def update_product_in_deal_in_pipedrive(
 ) -> str:
     """Updates a product attached to a deal in Pipedrive CRM.
 
-    This tool requires the deal ID and product attachment ID, and at least
-    one field to update. It allows updating properties like price, quantity,
-    tax, discount, and billing options.
+    This tool updates an existing product that is already attached to a deal. You must 
+    provide both the deal ID and the product attachment ID (not the product ID), along with
+    at least one field to update. It can modify pricing, quantity, tax settings, discount,
+    and recurring billing options.
+    
+    Format requirements:
+    - id_str: Required numeric ID of the deal (e.g. "123")
+    - product_attachment_id_str: Required numeric ID of the product attachment (e.g. "456")
+    - item_price: Positive numeric value (e.g. "99.99")
+    - quantity: Positive integer (e.g. "1")
+    - tax: Non-negative numeric percentage or amount (e.g. "10" for 10%)
+    - discount: Non-negative numeric percentage or amount (e.g. "15" for 15%)
+    - billing_start_date: ISO date format YYYY-MM-DD (e.g. "2025-12-31")
+    
+    Pricing Options:
+    - discount_type: Controls how discount is applied ("percentage" or "amount")
+    - tax_method: Controls how tax is calculated ("inclusive", "exclusive", or "none")
+    
+    Billing Options:
+    - billing_frequency: Frequency for recurring billing ("one-time", "weekly", etc.)
+    - billing_frequency_cycles: Number of billing cycles (1-208)
+    - is_enabled: Whether the product is active on the deal (true or false)
+    
+    Special Validations:
+    - One-time products can't have billing cycles
+    - Weekly products must have billing cycles specified
+    - When updating billing_frequency to "one-time", billing_frequency_cycles must be null
+    - When updating billing_frequency to "weekly", billing_frequency_cycles must be provided
+    
+    Example usage:
+    ```
+    update_product_in_deal_in_pipedrive(
+        id_str="123",
+        product_attachment_id_str="456",
+        item_price="249.99",
+        quantity="3",
+        discount="20",
+        discount_type="percentage"
+    )
+    ```
 
     args:
     ctx: Context
-    id_str: str - The ID of the deal
-    product_attachment_id_str: str - The ID of the product attachment to update
-    item_price: Optional[str] = None - The updated price of the product
-    quantity: Optional[str] = None - The updated quantity of the product
-    tax: Optional[str] = None - The updated tax value
+    id_str: str - The ID of the deal (required)
+    product_attachment_id_str: str - The ID of the product attachment to update (required)
+    item_price: Optional[str] = None - The updated price of the product (positive number)
+    quantity: Optional[str] = None - The updated quantity of the product (positive integer)
+    tax: Optional[str] = None - The updated tax value (non-negative number)
     comments: Optional[str] = None - Updated comments about the product
-    discount: Optional[str] = None - The updated discount value
-    discount_type: Optional[str] = None - Updated discount type (percentage or amount)
-    tax_method: Optional[str] = None - Updated tax method (inclusive, exclusive, none)
+    discount: Optional[str] = None - The updated discount value (non-negative number)
+    discount_type: Optional[str] = None - Updated discount type ("percentage" or "amount")
+    tax_method: Optional[str] = None - Updated tax method ("inclusive", "exclusive", "none")
     is_enabled: Optional[bool] = None - Whether the product is enabled for the deal
     product_variation_id_str: Optional[str] = None - The updated ID of the product variation
-    billing_frequency: Optional[str] = None - Updated billing frequency
-    billing_frequency_cycles: Optional[str] = None - Updated number of billing cycles
+    billing_frequency: Optional[str] = None - Updated billing frequency ("one-time", "annually", etc.)
+    billing_frequency_cycles: Optional[str] = None - Updated number of billing cycles (1-208)
     billing_start_date: Optional[str] = None - Updated start date for billing (YYYY-MM-DD)
     """
     logger.debug(
@@ -152,13 +190,21 @@ async def update_product_in_deal_in_pipedrive(
 
     # Validate discount_type if provided
     if discount_type and discount_type not in ["percentage", "amount"]:
-        error_message = f"Invalid discount type: '{discount_type}'. Must be 'percentage' or 'amount'."
+        error_message = format_validation_error(
+            "discount_type", discount_type, 
+            "Must be 'percentage' (applies percentage discount) or 'amount' (applies fixed amount discount).", 
+            "percentage"
+        )
         logger.error(error_message)
         return format_tool_response(False, error_message=error_message)
 
     # Validate tax_method if provided
     if tax_method and tax_method not in ["inclusive", "exclusive", "none"]:
-        error_message = f"Invalid tax method: '{tax_method}'. Must be 'inclusive', 'exclusive', or 'none'."
+        error_message = format_validation_error(
+            "tax_method", tax_method, 
+            "Must be 'inclusive' (tax included in price), 'exclusive' (tax added to price), or 'none' (no tax).", 
+            "inclusive"
+        )
         logger.error(error_message)
         return format_tool_response(False, error_message=error_message)
 
@@ -166,13 +212,35 @@ async def update_product_in_deal_in_pipedrive(
     if billing_frequency and billing_frequency not in [
         "one-time", "annually", "semi-annually", "quarterly", "monthly", "weekly"
     ]:
-        error_message = (
-            f"Invalid billing frequency: '{billing_frequency}'. "
-            f"Must be one of: one-time, annually, semi-annually, quarterly, monthly, weekly."
+        error_message = format_validation_error(
+            "billing_frequency", billing_frequency, 
+            "Must be one of: one-time, annually, semi-annually, quarterly, monthly, weekly.", 
+            "monthly"
         )
         logger.error(error_message)
         return format_tool_response(False, error_message=error_message)
+        
+    # Validate billing_frequency and billing_frequency_cycles compatibility
+    if billing_frequency == "one-time" and billing_cycles_int is not None:
+        error_message = "When billing_frequency is 'one-time', billing_frequency_cycles must be null."
+        logger.error(error_message)
+        return format_tool_response(False, error_message=error_message)
+        
+    if billing_frequency == "weekly" and billing_cycles_int is None:
+        error_message = "When billing_frequency is 'weekly', billing_frequency_cycles must be specified."
+        logger.error(error_message)
+        return format_tool_response(False, error_message=error_message)
 
+    # Validate billing_start_date format if provided
+    if billing_start_date is not None:
+        date_value, date_error = validate_date_string(
+            billing_start_date, "billing_start_date", "YYYY-MM-DD", "2025-12-31"
+        )
+        if date_error:
+            logger.error(date_error)
+            return format_tool_response(False, error_message=date_error)
+        billing_start_date = date_value
+            
     # Check if at least one field is being updated
     if all(param is None for param in [
         item_price_float, quantity_int, tax_float, comments, discount_float,

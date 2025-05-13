@@ -152,7 +152,7 @@ class TestAddProductToDealTool:
 
         # Verify error response
         assert response["success"] is False
-        assert "Invalid deal_id format" in response["error"]
+        assert "deal_id must be a numeric string" in response["error"]
 
         # Verify that add_product_to_deal was not called
         add_product_mock = mock_context.request_context.lifespan_context.pipedrive_client.deals.add_product_to_deal
@@ -175,7 +175,7 @@ class TestAddProductToDealTool:
 
         # Verify error response
         assert response["success"] is False
-        assert "Invalid product_id format" in response["error"]
+        assert "product_id must be a numeric string" in response["error"]
 
         # Verify that add_product_to_deal was not called
         add_product_mock = mock_context.request_context.lifespan_context.pipedrive_client.deals.add_product_to_deal

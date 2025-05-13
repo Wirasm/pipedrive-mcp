@@ -164,7 +164,7 @@ class TestUpdateDealTool:
 
         # Verify error response
         assert response["success"] is False
-        assert "Invalid deal_id format" in response["error"]
+        assert "deal_id must be a numeric string" in response["error"]
 
         # Verify that update_deal was not called
         update_deal_mock = mock_context.request_context.lifespan_context.pipedrive_client.deals.update_deal
@@ -221,8 +221,8 @@ class TestUpdateDealTool:
 
         # Verify error response
         assert response["success"] is False
-        assert "Invalid probability value" in response["error"]
-        assert "Must be between 0 and 100" in response["error"]
+        assert "Invalid probability format" in response["error"]
+        assert "Must be an integer between 0 and 100" in response["error"]
 
         # Verify that update_deal was not called
         update_deal_mock = mock_context.request_context.lifespan_context.pipedrive_client.deals.update_deal

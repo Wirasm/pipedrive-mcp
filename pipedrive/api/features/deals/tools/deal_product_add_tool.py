@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field, ValidationError
 
 from log_config import logger
 from pipedrive.api.features.deals.models.deal_product import DealProduct
-from pipedrive.api.features.shared.conversion.id_conversion import convert_id_string
+from pipedrive.api.features.shared.conversion.id_conversion import convert_id_string, validate_date_string
 from pipedrive.api.features.shared.utils import format_tool_response
 from pipedrive.api.pipedrive_api_error import PipedriveAPIError
 from pipedrive.api.pipedrive_context import PipedriveMCPContext
@@ -179,13 +179,21 @@ class DealProductBilling(BaseModel):
         else:
             result["billing_frequency_cycles"] = None
 
-        # Sanitize billing_start_date
-        result["billing_start_date"] = None if self.billing_start_date == "" else self.billing_start_date
+        # Validate billing_start_date format
+        if self.billing_start_date and self.billing_start_date.strip():
+            date_value, date_error = validate_date_string(
+                self.billing_start_date, "billing_start_date", "YYYY-MM-DD", "2025-12-31"
+            )
+            if date_error:
+                raise ValueError(date_error)
+            result["billing_start_date"] = date_value
+        else:
+            result["billing_start_date"] = None
 
         return result
 
 
-@mcp.tool()
+@mcp.tool("add_product_to_deal_in_pipedrive")
 async def add_product_to_deal_in_pipedrive(
     ctx: Context,
     id_str: str,
@@ -204,23 +212,65 @@ async def add_product_to_deal_in_pipedrive(
 ) -> str:
     """Adds a product to a deal in Pipedrive CRM, creating a new deal-product.
 
-    This tool requires the deal ID, product ID, price and quantity. You can
-    optionally provide details like tax, discount, comments, and billing options.
+    This tool adds a product to an existing deal with specified pricing and billing details.
+    A deal-product association is created in Pipedrive, linking the product to the deal
+    with the given price, quantity, and other attributes.
+    
+    Format requirements:
+    - id_str: Numeric ID of the deal (e.g. "123")
+    - product_id_str: Numeric ID of the product (e.g. "456")
+    - item_price: Positive numeric value (e.g. "99.99")
+    - quantity: Positive integer (e.g. "1")
+    - tax: Numeric percentage or amount (e.g. "10" for 10%)
+    - discount: Numeric percentage or amount (e.g. "15" for 15% or 15 units)
+    - billing_start_date: ISO date format YYYY-MM-DD (e.g. "2025-12-31")
+    
+    Pricing Options:
+    - discount_type: Controls how discount is applied ("percentage" or "amount")
+      - "percentage": Applies discount as percentage of total (e.g. "10" = 10% off)
+      - "amount": Applies fixed amount discount (e.g. "50" = $50 off)
+    
+    - tax_method: Controls how tax is calculated ("inclusive", "exclusive", or "none")
+      - "inclusive": Tax is already included in the item_price
+      - "exclusive": Tax will be added to the item_price
+      - "none": No tax applied
+    
+    Billing Options:
+    - billing_frequency: How often customer is billed ("one-time", "weekly", etc.)
+    - billing_frequency_cycles: Number of billing cycles (required for "weekly", optional for others)
+    - billing_start_date: When billing should begin (YYYY-MM-DD)
+    
+    Special Validations:
+    - When billing_frequency is "one-time", billing_frequency_cycles must be null
+    - When billing_frequency is "weekly", billing_frequency_cycles is required
+    - For recurring billing, cycles must be between 1 and 208
+    
+    Example usage:
+    ```
+    add_product_to_deal_in_pipedrive(
+        id_str="123",
+        product_id_str="456",
+        item_price="199.99",
+        quantity="2",
+        discount="10",
+        discount_type="percentage"
+    )
+    ```
 
     args:
     ctx: Context
-    id_str: str - The ID of the deal
-    product_id_str: str - The ID of the product to add
-    item_price: str - The price value of the product
-    quantity: str - The quantity of the product
-    tax: Optional[str] = "0" - The product tax value
+    id_str: str - The ID of the deal (required)
+    product_id_str: str - The ID of the product to add (required)
+    item_price: str - The price value of the product (positive number, required)
+    quantity: str - The quantity of the product (positive integer, required)
+    tax: Optional[str] = "0" - The product tax value (percentage or amount)
     comments: Optional[str] = None - Additional comments about the product
-    discount: Optional[str] = "0" - The discount value
-    discount_type: str = "percentage" - Discount type (percentage or amount)
-    tax_method: Optional[str] = "inclusive" - Tax method (inclusive, exclusive, none)
+    discount: Optional[str] = "0" - The discount value (percentage or amount)
+    discount_type: str = "percentage" - Discount type ("percentage" or "amount")
+    tax_method: Optional[str] = "inclusive" - Tax method ("inclusive", "exclusive", "none")
     product_variation_id_str: Optional[str] = None - The ID of the product variation
-    billing_frequency: str = "one-time" - Billing frequency (one-time, annually, semi-annually, quarterly, monthly, weekly)
-    billing_frequency_cycles: Optional[str] = None - Number of billing cycles
+    billing_frequency: str = "one-time" - Billing frequency ("one-time", "annually", "semi-annually", "quarterly", "monthly", "weekly")
+    billing_frequency_cycles: Optional[str] = None - Number of billing cycles (1-208, required for weekly billing)
     billing_start_date: Optional[str] = None - Start date for billing in YYYY-MM-DD format
     """
     logger.debug(
