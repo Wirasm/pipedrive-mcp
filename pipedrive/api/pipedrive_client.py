@@ -4,6 +4,7 @@ import httpx
 
 from log_config import logger
 from pipedrive.api.base_client import BaseClient
+from pipedrive.api.features.activities.client.activity_client import ActivityClient
 from pipedrive.api.features.deals.client.deal_client import DealClient
 from pipedrive.api.features.item_search.client.item_search_client import (
     ItemSearchClient,
@@ -40,6 +41,7 @@ class PipedriveClient:
         self.organizations = OrganizationClient(self.base_client)
         self.item_search = ItemSearchClient(self.base_client)
         self.lead_client = LeadClient(self.base_client)
+        self.activities = ActivityClient(self.base_client)
 
         logger.debug("PipedriveClient initialized.")
 
