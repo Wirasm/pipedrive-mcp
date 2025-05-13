@@ -54,6 +54,14 @@ from pipedrive.api.features.deals.tools.deal_product_delete_tool import (
     delete_product_from_deal_in_pipedrive,
 )
 
+# Item Search tools
+from pipedrive.api.features.item_search.tools.item_search_tool import (
+    search_items_in_pipedrive,
+)
+from pipedrive.api.features.item_search.tools.item_field_search_tool import (
+    search_item_field_in_pipedrive,
+)
+
 from pipedrive.api.pipedrive_context import pipedrive_lifespan
 from pipedrive.mcp_instance import mcp
 

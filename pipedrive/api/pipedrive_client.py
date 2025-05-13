@@ -6,6 +6,7 @@ from log_config import logger
 from pipedrive.api.base_client import BaseClient
 from pipedrive.api.features.persons.client.person_client import PersonClient
 from pipedrive.api.features.deals.client.deal_client import DealClient
+from pipedrive.api.features.item_search.client.item_search_client import ItemSearchClient
 
 
 class PipedriveClient:
@@ -30,6 +31,7 @@ class PipedriveClient:
         # Initialize resource-specific clients
         self.persons = PersonClient(self.base_client)
         self.deals = DealClient(self.base_client)
+        self.item_search = ItemSearchClient(self.base_client)
 
         logger.debug("PipedriveClient initialized.")
     
@@ -215,3 +217,47 @@ class PipedriveClient:
     async def delete_deal(self, deal_id: int) -> Dict[str, Any]:
         """Forward to deals client delete_deal method"""
         return await self.deals.delete_deal(deal_id=deal_id)
+        
+    # --- Item Search Methods (forwarding to item_search client) ---
+    
+    async def search_items(
+        self,
+        term: str,
+        item_types: Optional[List[str]] = None,
+        fields: Optional[List[str]] = None,
+        search_for_related_items: bool = False,
+        exact_match: bool = False,
+        include_fields: Optional[List[str]] = None,
+        limit: int = 100,
+        cursor: Optional[str] = None,
+    ) -> Tuple[List[Dict[str, Any]], Optional[str]]:
+        """Forward to item_search client search_items method"""
+        return await self.item_search.search_items(
+            term=term,
+            item_types=item_types,
+            fields=fields,
+            search_for_related_items=search_for_related_items,
+            exact_match=exact_match,
+            include_fields=include_fields,
+            limit=limit,
+            cursor=cursor,
+        )
+    
+    async def search_field(
+        self,
+        term: str,
+        entity_type: str,
+        field: str,
+        match: str = "exact",
+        limit: int = 100,
+        cursor: Optional[str] = None,
+    ) -> Tuple[List[Dict[str, Any]], Optional[str]]:
+        """Forward to item_search client search_field method"""
+        return await self.item_search.search_field(
+            term=term,
+            entity_type=entity_type,
+            field=field,
+            match=match,
+            limit=limit,
+            cursor=cursor,
+        )

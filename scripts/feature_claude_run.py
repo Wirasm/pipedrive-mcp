@@ -77,7 +77,7 @@ def setup_allowed_tools(project_config=True):
 
     # Get the project root directory
     project_root = Path(__file__).parent.parent.absolute()
-    
+
     if project_config:
         # Create/update .claude/settings.json in the project directory
         config_dir = project_root / ".claude"
@@ -114,7 +114,7 @@ def run_claude_for_feature(prp_file, interactive=False):
     """Run Claude with the specified PRP file"""
     # Get the project root directory
     project_root = Path(__file__).parent.parent.absolute()
-    
+
     # Change to project root directory
     os.chdir(project_root)
 
@@ -123,9 +123,9 @@ def run_claude_for_feature(prp_file, interactive=False):
         prp_file = f"PRPs/{prp_file}"
         if not prp_file.endswith(".md"):
             prp_file = f"{prp_file}.md"
-    
+
     prp_path = project_root / prp_file
-    
+
     # Check if PRP file exists
     if not prp_path.exists():
         print(f"Error: PRP file not found at {prp_path}")
@@ -137,10 +137,9 @@ Think hard about this task.
 I need you to implement the feature described in the PRP file: {prp_file}
 
 First:
-1. Read and thoroughly understand the PRP file
-2. Read the referenced files and ai_docs/pipedrive_deals.md to understand the API and existing patterns
-3. MIRROR the directory structure and implementation patterns from the persons feature
-
+1. Read and thoroughly understand the PRP file related to the feature
+2. Read the referenced files and payinh special attention to the ai_docs/ directory with files referencing the specific feature to understand the API and existing patterns
+3. MIRROR the directory structure and implementation patterns from the existing features in pipedrive/api/features
 Then:
 4. Create a detailed implementation plan
 5. Use subagents where needed to explore complex aspects of the codebase
@@ -156,6 +155,9 @@ Remember to:
 - Test your implementation thoroughly
 - Update server.py to register all new tools
 
+** After you have implemented the feature, run the tests to make sure everything works as expected.**
+** After the tests pass, stage the changes and write a clear commit message. DO NOT COMMIT to allow the user to review the files.**
+
 Let's approach this methodically, exploring the codebase first before implementing anything.
 """
 
@@ -164,9 +166,7 @@ Let's approach this methodically, exploring the codebase first before implementi
         try:
             print(f"Starting interactive Claude session for {prp_file}...")
             print(f"Working directory: {os.getcwd()}")
-            subprocess.run(
-                ["claude"], input=prompt.encode(), check=True
-            )
+            subprocess.run(["claude"], input=prompt.encode(), check=True)
         except FileNotFoundError:
             print(
                 "Error: Claude executable not found. Make sure it's installed and in your PATH."
@@ -192,7 +192,61 @@ Let's approach this methodically, exploring the codebase first before implementi
             process = subprocess.run(
                 command, check=True, capture_output=True, text=True
             )
-            print(process.stdout)
+
+            # Check for created files to provide a simple summary
+            feature_name = Path(prp_file).stem.split("_")[0]
+            feature_dir = project_root / "pipedrive" / "api" / "features" / feature_name
+            if feature_dir.exists():
+                files_created = list(feature_dir.glob("**/*.py"))
+                num_files = len(files_created)
+                print(
+                    f"\n✅ Success! Created {num_files} Python files in {feature_dir.relative_to(project_root)}"
+                )
+                print(f"Key files created:")
+
+                # Show key implementation files for context
+                for pattern in ["client/*.py", "models/*.py", "tools/*.py"]:
+                    for file in feature_dir.glob(pattern):
+                        if not file.name.startswith("__") and not file.name.startswith(
+                            "test_"
+                        ):
+                            print(f"  - {file.relative_to(project_root)}")
+
+                # Check if import statements were added to server.py and pipedrive_client.py
+                server_updated = False
+                client_updated = False
+
+                # Check server.py for imports of the new feature
+                server_file = project_root / "server.py"
+                if server_file.exists():
+                    with open(server_file, "r") as f:
+                        server_content = f.read()
+                        if f"{feature_name}" in server_content:
+                            server_updated = True
+
+                # Check pipedrive_client.py for imports of the new feature
+                client_file = project_root / "pipedrive" / "api" / "pipedrive_client.py"
+                if client_file.exists():
+                    with open(client_file, "r") as f:
+                        client_content = f.read()
+                        if f"{feature_name}" in client_content:
+                            client_updated = True
+
+                if server_updated:
+                    print("✅ Updated server.py with new tools")
+                if client_updated:
+                    print("✅ Updated pipedrive_client.py with new client")
+
+                print(
+                    "\nVerify implementation with: uv run pytest pipedrive/api/features/"
+                    + feature_name
+                )
+            else:
+                print(
+                    "⚠️ Implementation may not be complete. Check Claude's output for details."
+                )
+
+            # Don't print raw stdout unless there's an explicit debug flag
         except subprocess.CalledProcessError as e:
             print(f"Claude process failed: {e}")
             if e.stderr:
@@ -207,7 +261,7 @@ def main():
         "feature",
         nargs="?",
         default="deals",
-        help="Feature name to implement (default: deals)"
+        help="Feature name to implement (default: deals)",
     )
     parser.add_argument(
         "--prp",
@@ -243,7 +297,7 @@ def main():
 
     # Determine PRP file
     prp_file = args.prp if args.prp else f"PRPs/{args.feature}_init.md"
-    
+
     if not args.configure_tools:
         run_claude_for_feature(prp_file, args.interactive)
 
