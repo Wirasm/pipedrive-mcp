@@ -10,10 +10,10 @@ from pipedrive.api.features.shared.conversion.id_conversion import convert_id_st
 from pipedrive.api.features.shared.utils import format_tool_response
 from pipedrive.api.pipedrive_api_error import PipedriveAPIError
 from pipedrive.api.pipedrive_context import PipedriveMCPContext
-from pipedrive.mcp_instance import mcp
+from pipedrive.api.features.tool_decorator import tool
 
 
-@mcp.tool()
+@tool("persons")
 async def create_person_in_pipedrive(
     ctx: Context,
     name: str,

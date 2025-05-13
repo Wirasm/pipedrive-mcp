@@ -246,10 +246,10 @@ from pipedrive.api.features.shared.conversion.id_conversion import convert_id_st
 from pipedrive.api.features.feature.models.feature_model import FeatureModel
 from pipedrive.api.pipedrive_api_error import PipedriveAPIError
 from pipedrive.api.pipedrive_context import PipedriveMCPContext
-from pipedrive.mcp_instance import mcp
+from pipedrive.api.features.tool_decorator import tool
 
 
-@mcp.tool()
+@tool("feature_name")
 async def create_feature_in_pipedrive(
     ctx: Context,
     name: str,
@@ -307,6 +307,35 @@ async def create_feature_in_pipedrive(
     except Exception as e:
         logger.exception(f"Unexpected error in tool 'create_feature_in_pipedrive': {str(e)}")
         return format_tool_response(False, error_message=f"An unexpected error occurred: {str(e)}")
+```
+
+## Feature Registry Template
+
+Use this template when creating feature registry files:
+
+```python
+from pipedrive.api.features.tool_registry import registry, FeatureMetadata
+
+# Register the feature
+registry.register_feature(
+    "feature_name",
+    FeatureMetadata(
+        name="Feature Name",
+        description="Description of the feature",
+        version="1.0.0",
+        dependencies=[],  # Optional dependencies on other features
+    )
+)
+
+# Import and register tools
+from .tools.feature_tool1 import feature_tool1
+from .tools.feature_tool2 import feature_tool2
+from .tools.feature_tool3 import feature_tool3
+
+# Register all tools for this feature
+registry.register_tool("feature_name", feature_tool1)
+registry.register_tool("feature_name", feature_tool2)
+registry.register_tool("feature_name", feature_tool3)
 ```
 
 ## Test Templates

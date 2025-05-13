@@ -25,6 +25,13 @@ The mcp-concept project is a Model Control Protocol (MCP) server implementation 
    HOST=0.0.0.0  # Optional, defaults to 0.0.0.0
    PORT=8152     # Optional, defaults to 8152
    TRANSPORT=sse  # or "stdio", defaults to "stdio"
+   
+   # Feature flags (optional)
+   PIPEDRIVE_FEATURE_PERSONS=true
+   PIPEDRIVE_FEATURE_DEALS=true
+   PIPEDRIVE_FEATURE_ORGANIZATIONS=true
+   PIPEDRIVE_FEATURE_LEADS=true
+   PIPEDRIVE_FEATURE_ITEM_SEARCH=true
    ```
 
 ## Dependencies
@@ -91,31 +98,23 @@ pipedrive/
 │   ├── pipedrive_client.py                  (Main client that delegates to feature-specific clients)
 │   ├── pipedrive_context.py                 (Context manager for MCP integration)
 │   ├── features/
-│   │   ├── __init__.py
+│   │   ├── __init__.py                      (Feature discovery mechanism)
+│   │   ├── tool_registry.py                 (Feature registry system)
+│   │   ├── tool_decorator.py                (Feature-aware tool decorator)
 │   │   ├── persons/                         (Person feature module)
 │   │   │   ├── __init__.py
+│   │   │   ├── persons_tool_registry.py     (Person feature registry)
 │   │   │   ├── client/                      (Person-specific API client)
-│   │   │   │   ├── __init__.py
-│   │   │   │   ├── person_client.py         (Client for person API endpoints)
-│   │   │   │   └── tests/                   (Tests for person client)
 │   │   │   ├── models/                      (Person data models)
-│   │   │   │   ├── __init__.py
-│   │   │   │   ├── contact_info.py          (Email and Phone models)
-│   │   │   │   ├── person.py                (Person model with validation)
-│   │   │   │   └── tests/                   (Tests for person models)
 │   │   │   └── tools/                       (Person MCP tools)
-│   │   │       ├── __init__.py
-│   │   │       ├── person_create_tool.py    (Tool for creating persons)
-│   │   │       └── tests/                   (Tests for person tools)
+│   │   ├── organizations/                   (Organization feature module)
+│   │   ├── deals/                           (Deal feature module)
+│   │   ├── leads/                           (Leads feature module)
+│   │   ├── item_search/                     (Item search feature module)
 │   │   └── shared/                          (Shared utilities across features)
-│   │       ├── __init__.py
-│   │       ├── conversion/                  (Type conversion utilities)
-│   │       │   ├── __init__.py
-│   │       │   ├── id_conversion.py         (String to integer ID conversion)
-│   │       │   └── tests/                   (Tests for conversion utilities)
-│   │       └── utils.py                     (Shared utility functions)
 │   └── tests/                               (Tests for core API components)
-└── mcp_instance.py                          (MCP server instance configuration)
+├── mcp_instance.py                          (MCP server instance configuration)
+└── feature_config.py                        (Feature configuration management)
 ```
 
 ## Project Architecture
@@ -128,27 +127,36 @@ pipedrive/
 
 3. **Feature-specific Clients:** (e.g., `pipedrive/api/features/persons/client/person_client.py`) Handle API requests for specific resource types.
 
-4. **Data Models:** (e.g., `pipedrive/api/features/persons/models/`) Pydantic models that represent Pipedrive person entities with validation.
+4. **Data Models:** (e.g., `pipedrive/api/features/persons/models/`) Pydantic models that represent Pipedrive entities with validation.
 
-5. **MCP Tools:** (e.g., `pipedrive/api/features/persons/tools/`) Person MCP tools that Claude can call through the MCP protocol.
+5. **MCP Tools:** (e.g., `pipedrive/api/features/persons/tools/`) MCP tools that Claude can call through the MCP protocol.
 
-6. **Shared Utilities:** (`pipedrive/api/features/shared/`) Common utilities used across different features:
+6. **Feature Registry:** (`pipedrive/api/features/tool_registry.py`) System for registering and managing features and their tools.
+
+7. **Feature Configuration:** (`pipedrive/feature_config.py`) System for enabling/disabling features at runtime.
+
+8. **Tool Decorator:** (`pipedrive/api/features/tool_decorator.py`) Feature-aware decorator for MCP tools.
+
+9. **Shared Utilities:** (`pipedrive/api/features/shared/`) Common utilities used across different features:
    - `utils.py`: Contains `format_tool_response()` for standardized JSON responses
    - `conversion/id_conversion.py`: Contains `convert_id_string()` for string-to-integer conversion
 
-7. **Pipedrive Context:** (`pipedrive/api/pipedrive_context.py`) Manages the lifecycle of the Pipedrive client.
+10. **Pipedrive Context:** (`pipedrive/api/pipedrive_context.py`) Manages the lifecycle of the Pipedrive client.
 
 ### Data Flow
 
 1. Claude calls an MCP tool function
-2. The tool function accesses the Pipedrive client via context
-3. The client delegates to the appropriate feature-specific client
-4. The feature client makes an API request to Pipedrive
-5. Results are processed and returned to Claude in a standardized format
+2. The tool decorator checks if the feature is enabled
+3. The tool function accesses the Pipedrive client via context
+4. The client delegates to the appropriate feature-specific client
+5. The feature client makes an API request to Pipedrive
+6. Results are processed and returned to Claude in a standardized format
 
 ### Key Features
 
 - **Vertical Slice Architecture:** Code is organized by feature rather than by technical layer
+- **Feature Registry:** Modular, configurable system for registering MCP tools
+- **Feature Flags:** Runtime enabling/disabling of features
 - **Asynchronous API Client:** Uses `httpx` for async HTTP requests
 - **Type Safety:** Uses Pydantic models for data validation
 - **Testability:** Co-located tests with the code they test
@@ -184,6 +192,7 @@ When creating new features (e.g., for deals, organizations):
    ```
    pipedrive/api/features/new_feature/
    ├── __init__.py
+   ├── new_feature_tool_registry.py
    ├── client/
    │   ├── __init__.py
    │   ├── new_feature_client.py
@@ -198,14 +207,39 @@ When creating new features (e.g., for deals, organizations):
        └── tests/
    ```
 
-3. **Add Client to Main Client:**
+3. **Register the Feature:**
+   Create a feature registry file (`new_feature_tool_registry.py`):
+   ```python
+   from pipedrive.api.features.tool_registry import registry, FeatureMetadata
+   
+   # Register the feature
+   registry.register_feature(
+       "new_feature",
+       FeatureMetadata(
+           name="New Feature",
+           description="Description of the new feature",
+           version="1.0.0",
+       )
+   )
+   
+   # Import and register tools
+   from .tools.new_feature_tool import new_feature_tool
+   registry.register_tool("new_feature", new_feature_tool)
+   ```
+
+4. **Add Client to Main Client:**
    Update `pipedrive/api/pipedrive_client.py` to initialize and expose the new feature client.
 
-4. **Create Tools:**
-   Define new MCP tools in the feature's tools directory.
-
-5. **Register Tools:**
-   Import the tools in `server.py` to register them with the MCP server.
+5. **Create Tools:**
+   Define new MCP tools in the feature's tools directory using the feature-aware decorator:
+   ```python
+   from pipedrive.api.features.tool_decorator import tool
+   
+   @tool("new_feature")
+   async def new_feature_tool(ctx, param1, param2):
+       """Documentation for the tool"""
+       # Tool implementation
+   ```
 
 6. **Follow Templates:**
    Use the templates in `.claude/guides/templates.md` for consistent implementation.
@@ -230,6 +264,29 @@ To avoid duplication, always use the existing shared utilities:
    id_value, error = convert_id_string(id_str, "field_name")
    if error:
        return format_tool_response(False, error_message=error)
+   ```
+
+## Feature Configuration
+
+Features can be enabled/disabled through:
+
+1. **Environment Variables:**
+   ```
+   PIPEDRIVE_FEATURE_PERSONS=true
+   PIPEDRIVE_FEATURE_DEALS=false
+   ```
+
+2. **JSON Configuration File:**
+   ```json
+   {
+     "features": {
+       "persons": true,
+       "deals": true,
+       "organizations": true,
+       "leads": false,
+       "item_search": true
+     }
+   }
    ```
 
 ## Testing
@@ -263,6 +320,7 @@ If you encounter test failures:
 - **Edge Cases**: See `.claude/guides/edge-cases.md` for Pipedrive API quirks
 - **Development Guide**: See `.claude/guides/dev-guide.md` for architecture details
 - **MCP Tools**: Format docstrings with newlines between parameters for better readability, following the pattern in `ai_docs/mcp_example.md`
+- **Migration Guide**: See `MIGRATION_GUIDE.md` for details on the new feature registry system
 
 ## Using Subagents for Research
 
