@@ -249,6 +249,14 @@ If you encounter test failures:
 3. Check for mocking issues with AsyncMock objects
 4. Verify all coroutines are properly awaited
 
+## API Quirks and Model Requirements
+
+- **Organization Address Format**: The Pipedrive API expects organization addresses in a dictionary format like `{"value": "123 Main St, City, Country"}` rather than a simple string. Always use the dictionary format for organization addresses in both create and update operations.
+
+- **Label Arrays**: Some fields like `label_ids` must be sent as arrays even when only one item is present.
+
+- **Visible To**: The `visible_to` parameter must be an integer between 1-4 representing the visibility level.
+
 ## Documentation and Resources
 
 - **Templates**: See `.claude/guides/templates.md` for code templates
