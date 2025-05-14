@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List
 
 from mcp.server.fastmcp import Context
 
@@ -7,10 +7,10 @@ from pipedrive.api.features.shared.utils import format_tool_response
 from pipedrive.api.features.shared.conversion.id_conversion import convert_id_string
 from pipedrive.api.pipedrive_api_error import PipedriveAPIError
 from pipedrive.api.pipedrive_context import PipedriveMCPContext
-from pipedrive.mcp_instance import mcp
+from pipedrive.api.features.tool_decorator import tool
 
 
-@mcp.tool()
+@tool("persons")
 async def search_persons_in_pipedrive(
     ctx: Context,
     term: str,
@@ -25,21 +25,52 @@ async def search_persons_in_pipedrive(
     This tool searches across all persons in Pipedrive using the provided term.
     Results can be filtered by organization and specific fields to search in.
 
-    args:
-    ctx: Context
-    term: str - The search term to look for (min 2 chars, or 1 if exact_match=True)
-    fields_str: Optional[str] = None - Comma-separated list of fields to search in (name, email, phone, notes, custom_fields)
-    exact_match: bool = False - When True, only exact matches are returned
-    org_id_str: Optional[str] = None - Organization ID to filter persons by
-    include_fields_str: Optional[str] = None - Comma-separated list of additional fields to include
-    limit_str: Optional[str] = "100" - Maximum number of results to return (max 500)
+    Format requirements:
+        - term: Search term (minimum 2 characters, or 1 if exact_match=True)
+        - fields_str: Optional comma-separated list of fields to search in:
+          Available options: "name", "email", "phone", "notes", "custom_fields"
+          Example: "name,email,phone"
+        - exact_match: When True, only exact matches are returned
+        - org_id_str: Optional organization ID as a string to filter persons by
+        - include_fields_str: Optional comma-separated list of additional fields to include
+          Example: "person.picture,open_deals_count"
+        - limit_str: Maximum number of results to return (max 500)
+
+    Example:
+        search_persons_in_pipedrive(
+            term="John Smith",
+            fields_str="name,email",
+            exact_match=false,
+            org_id_str="42",
+            include_fields_str="person.picture",
+            limit_str="25"
+        )
+
+    Args:
+        ctx: Context object containing the Pipedrive client
+        term: The search term to look for
+        fields_str: Comma-separated list of fields to search in
+        exact_match: When True, only exact matches are returned
+        org_id_str: Organization ID to filter persons by
+        include_fields_str: Comma-separated list of additional fields to include
+        limit_str: Maximum number of results to return (default: "100")
+
+    Returns:
+        JSON string containing success status and search results or error message.
+        When successful, the response includes:
+        - items: Array of matching person objects
+        - count: Number of results found
+        - next_cursor: Pagination cursor for fetching more results (if available)
     """
     logger.debug(
-        f"Tool 'search_persons_in_pipedrive' ENTERED with raw args: term='{term}'"
+        f"Tool 'search_persons_in_pipedrive' ENTERED with raw args: "
+        f"term='{term}', fields_str='{fields_str}', exact_match={exact_match}, "
+        f"org_id_str='{org_id_str}', include_fields_str='{include_fields_str}', "
+        f"limit_str='{limit_str}'"
     )
 
     # Validate search term length
-    if len(term.strip()) < 1:
+    if not term or len(term.strip()) < 1:
         error_msg = "Search term cannot be empty"
         logger.error(error_msg)
         return format_tool_response(False, error_message=error_msg)
@@ -51,32 +82,51 @@ async def search_persons_in_pipedrive(
     pd_mcp_ctx: PipedriveMCPContext = ctx.request_context.lifespan_context
 
     # Process fields_str if provided
-    fields = None
+    fields: Optional[List[str]] = None
     if fields_str and fields_str.strip():
-        fields = [field.strip() for field in fields_str.split(",")]
+        fields = [field.strip() for field in fields_str.split(",") if field.strip()]
+        
+        # Validate field values
+        valid_fields = {"name", "email", "phone", "notes", "custom_fields"}
+        invalid_fields = [f for f in fields if f not in valid_fields]
+        if invalid_fields:
+            error_msg = (
+                f"Invalid search fields: {invalid_fields}. "
+                f"Valid options are: {', '.join(valid_fields)}"
+            )
+            logger.error(error_msg)
+            return format_tool_response(False, error_message=error_msg)
+            
         logger.debug(f"Searching in fields: {fields}")
 
     # Process include_fields_str if provided
-    include_fields = None
+    include_fields: Optional[List[str]] = None
     if include_fields_str and include_fields_str.strip():
-        include_fields = [field.strip() for field in include_fields_str.split(",")]
+        include_fields = [field.strip() for field in include_fields_str.split(",") if field.strip()]
         logger.debug(f"Including additional fields: {include_fields}")
 
     # Convert organization ID if provided
-    org_id, org_error = convert_id_string(org_id_str, "organization_id")
-    if org_error:
-        logger.error(org_error)
-        return format_tool_response(False, error_message=org_error)
+    org_id = None
+    if org_id_str:
+        org_id, org_error = convert_id_string(org_id_str, "organization_id")
+        if org_error:
+            logger.error(org_error)
+            return format_tool_response(False, error_message=org_error)
 
     # Convert limit to integer
     try:
         limit = int(limit_str) if limit_str else 100
-        if limit < 1 or limit > 500:
-            logger.warning(f"Invalid limit value: {limit}. Using default value 100.")
-            limit = 100
+        if limit < 1:
+            error_msg = f"Limit must be a positive integer, got {limit}"
+            logger.error(error_msg)
+            return format_tool_response(False, error_message=error_msg)
+        elif limit > 500:
+            logger.warning(f"Limit value {limit} exceeds maximum (500). Using max value 500.")
+            limit = 500
     except ValueError:
-        logger.warning(f"Invalid limit value: {limit_str}. Using default value 100.")
-        limit = 100
+        error_msg = f"Invalid limit value: '{limit_str}'. Must be a valid integer."
+        logger.error(error_msg)
+        return format_tool_response(False, error_message=error_msg)
 
     try:
         # Call the Pipedrive API using the persons client
@@ -94,7 +144,7 @@ async def search_persons_in_pipedrive(
             logger.info(f"No persons found for search term '{term}'")
             return format_tool_response(
                 True,
-                data={"items": [], "message": f"No persons found matching '{term}'"}
+                data={"items": [], "message": f"No persons found matching '{term}'", "count": 0}
             )
         
         logger.info(f"Found {len(search_results)} persons matching term '{term}'")

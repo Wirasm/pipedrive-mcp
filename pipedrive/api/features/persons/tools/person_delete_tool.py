@@ -5,10 +5,10 @@ from pipedrive.api.features.shared.utils import format_tool_response
 from pipedrive.api.features.shared.conversion.id_conversion import convert_id_string
 from pipedrive.api.pipedrive_api_error import PipedriveAPIError
 from pipedrive.api.pipedrive_context import PipedriveMCPContext
-from pipedrive.mcp_instance import mcp
+from pipedrive.api.features.tool_decorator import tool
 
 
-@mcp.tool()
+@tool("persons")
 async def delete_person_from_pipedrive(
     ctx: Context,
     id_str: str,
@@ -16,15 +16,36 @@ async def delete_person_from_pipedrive(
     """Deletes a person from the Pipedrive CRM.
 
     This tool marks a person as deleted. After 30 days, the person will be 
-    permanently deleted from Pipedrive.
+    permanently deleted from Pipedrive. This operation cannot be undone through
+    the API, so use it carefully.
 
-    args:
-    ctx: Context
-    id_str: str - The ID of the person to delete
+    Format requirements:
+        - id_str: Person ID as a string (required, will be converted to integer)
+
+    Example:
+        delete_person_from_pipedrive(
+            id_str="123"
+        )
+
+    Args:
+        ctx: Context object containing the Pipedrive client
+        id_str: ID of the person to delete (required)
+
+    Returns:
+        JSON string containing success status or error message.
+        When successful, the response includes:
+        - id: The ID of the deleted person
+        - message: Confirmation that the person was deleted
     """
     logger.debug(
         f"Tool 'delete_person_from_pipedrive' ENTERED with raw args: id_str='{id_str}'"
     )
+
+    # Validate that person ID is provided
+    if not id_str:
+        error_msg = "Person ID is required"
+        logger.error(error_msg)
+        return format_tool_response(False, error_message=error_msg)
 
     pd_mcp_ctx: PipedriveMCPContext = ctx.request_context.lifespan_context
 

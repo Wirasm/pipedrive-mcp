@@ -73,7 +73,7 @@ class TestDeletePersonTool:
         # Verify error response
         assert result_data["success"] is False
         assert "error" in result_data
-        assert "Invalid person_id format" in result_data["error"]
+        assert "person_id must be a numeric string" in result_data["error"]
         
         # Verify the client was not called
         mock_pipedrive_client.persons.delete_person.assert_not_called()

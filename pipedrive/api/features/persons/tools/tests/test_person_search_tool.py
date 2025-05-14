@@ -203,7 +203,7 @@ class TestSearchPersonsTool:
         # Verify error response
         assert result_data["success"] is False
         assert "error" in result_data
-        assert "Invalid organization_id format" in result_data["error"]
+        assert "organization_id must be a numeric string" in result_data["error"]
         
         # Verify the client was not called
         mock_pipedrive_client.persons.search_persons.assert_not_called()
@@ -225,13 +225,13 @@ class TestSearchPersonsTool:
         # Parse the JSON result
         result_data = json.loads(result)
         
-        # Verify success (should default to 100)
-        assert result_data["success"] is True
+        # Verify error response
+        assert result_data["success"] is False
+        assert "error" in result_data
+        assert "Invalid limit value" in result_data["error"]
         
-        # Verify the client was called with default limit
-        mock_pipedrive_client.persons.search_persons.assert_called_once()
-        call_kwargs = mock_pipedrive_client.persons.search_persons.call_args.kwargs
-        assert call_kwargs["limit"] == 100
+        # Verify the client was not called
+        mock_pipedrive_client.persons.search_persons.assert_not_called()
     
     @pytest.mark.asyncio
     async def test_search_persons_api_error(self, mock_pipedrive_client):
