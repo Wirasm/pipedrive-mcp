@@ -6,18 +6,32 @@ from log_config import logger
 from pipedrive.api.features.shared.utils import format_tool_response
 from pipedrive.api.pipedrive_api_error import PipedriveAPIError
 from pipedrive.api.pipedrive_context import PipedriveMCPContext
-from pipedrive.mcp_instance import mcp
+from pipedrive.api.features.tool_decorator import tool
 
 
-@mcp.tool("get_lead_sources_from_pipedrive")
+@tool("leads")
 async def get_lead_sources_from_pipedrive(ctx: Context) -> str:
-    """
-    Get all lead sources from Pipedrive.
+    """Retrieves all available lead source types from Pipedrive.
+    
+    This tool fetches the complete list of lead source categories configured in your Pipedrive
+    account. Lead sources indicate where a lead originated from, such as "API", "Web forms", 
+    "Import", etc. These are pre-defined values in Pipedrive and cannot be customized.
+    
+    Lead source information is useful for tracking and analyzing the effectiveness of
+    different lead generation channels. All leads created through the Pipedrive API will
+    automatically have the source "API" assigned to them.
+    
+    Example:
+        get_lead_sources_from_pipedrive()
+    
+    Args:
+        ctx: Context object containing the Pipedrive client
     
     Returns:
-        JSON response with a list of lead sources.
+        JSON string containing success status with a list of lead sources, or error message.
+        Each source contains a name property indicating the source type.
     """
-    logger.info("Getting all lead sources from Pipedrive")
+    logger.debug("Tool 'get_lead_sources_from_pipedrive' ENTERED")
     
     try:
         # Use the Pipedrive client from the context
@@ -43,7 +57,14 @@ async def get_lead_sources_from_pipedrive(ctx: Context) -> str:
                 error_message=f"Pipedrive API error: {str(e)}"
             )
             
+    except PipedriveAPIError as e:
+        logger.error(
+            f"PipedriveAPIError in tool 'get_lead_sources_from_pipedrive': {str(e)} - Response Data: {e.response_data}"
+        )
+        return format_tool_response(False, error_message=str(e), data=e.response_data)
     except Exception as e:
         # Handle errors
-        logger.error(f"Error getting lead sources: {str(e)}")
-        return format_tool_response(False, error_message=f"Failed to get lead sources: {str(e)}")
+        logger.exception(
+            f"Unexpected error in tool 'get_lead_sources_from_pipedrive': {str(e)}"
+        )
+        return format_tool_response(False, error_message=f"An unexpected error occurred: {str(e)}")

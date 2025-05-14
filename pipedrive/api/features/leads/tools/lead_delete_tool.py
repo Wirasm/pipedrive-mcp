@@ -7,30 +7,52 @@ from pipedrive.api.features.shared.conversion.id_conversion import validate_uuid
 from pipedrive.api.features.shared.utils import format_tool_response
 from pipedrive.api.pipedrive_api_error import PipedriveAPIError
 from pipedrive.api.pipedrive_context import PipedriveMCPContext
-from pipedrive.mcp_instance import mcp
+from pipedrive.api.features.tool_decorator import tool
 
 
-@mcp.tool("delete_lead_from_pipedrive")
+@tool("leads")
 async def delete_lead_from_pipedrive(
     ctx: Context,
     lead_id: str,
 ) -> str:
-    """
-    Delete a lead from Pipedrive.
+    """Permanently deletes a lead from Pipedrive.
+    
+    This tool removes a lead completely from your Pipedrive account. This action cannot be
+    undone, so use with caution. The lead will be permanently removed along with all its
+    associated data.
+    
+    Format requirements:
+        - lead_id: Required UUID of the lead to delete, in standard UUID format
+          (example: "adf21080-0e10-11eb-879b-05d71fb426ec")
+    
+    Example:
+        delete_lead_from_pipedrive(
+            lead_id="adf21080-0e10-11eb-879b-05d71fb426ec"
+        )
     
     Args:
-        lead_id: 
-            The UUID of the lead to delete.
+        ctx: Context object containing the Pipedrive client
+        lead_id: The UUID of the lead to delete
     
     Returns:
-        JSON response confirming deletion or error information.
+        JSON string containing success status and deletion confirmation or error message.
     """
-    logger.info(f"Deleting lead with ID: {lead_id}")
+    logger.debug(f"Tool 'delete_lead_from_pipedrive' ENTERED with lead_id: '{lead_id}'")
+    
+    # Validate required field
+    if not lead_id or not lead_id.strip():
+        error_msg = "Lead ID is required and cannot be empty"
+        logger.error(error_msg)
+        return format_tool_response(False, error_message=error_msg)
     
     # Validate UUID format
     validated_uuid, error = validate_uuid_string(lead_id, "lead_id")
     if error:
-        return format_tool_response(False, error_message=error)
+        logger.error(f"Invalid lead_id format: {error}")
+        return format_tool_response(
+            False, 
+            error_message=f"Invalid lead_id format: {error}. Lead ID must be a valid UUID."
+        )
     
     try:
         # Use the Pipedrive client from the context
@@ -61,8 +83,16 @@ async def delete_lead_from_pipedrive(
             
     except ValueError as e:
         # Handle validation errors
-        return format_tool_response(False, error_message=str(e))
+        logger.error(f"Validation error deleting lead with ID '{lead_id}': {str(e)}")
+        return format_tool_response(False, error_message=f"Validation error: {str(e)}")
+    except PipedriveAPIError as e:
+        logger.error(
+            f"PipedriveAPIError in tool 'delete_lead_from_pipedrive' for ID '{lead_id}': {str(e)} - Response Data: {e.response_data}"
+        )
+        return format_tool_response(False, error_message=str(e), data=e.response_data)
     except Exception as e:
         # Handle other errors
-        logger.error(f"Error deleting lead: {str(e)}")
-        return format_tool_response(False, error_message=f"Failed to delete lead: {str(e)}")
+        logger.exception(
+            f"Unexpected error in tool 'delete_lead_from_pipedrive' for ID '{lead_id}': {str(e)}"
+        )
+        return format_tool_response(False, error_message=f"An unexpected error occurred: {str(e)}")
