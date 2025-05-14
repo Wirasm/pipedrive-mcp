@@ -42,7 +42,8 @@ class TestCreateOrganizationTool:
             ctx=mock_ctx,
             name="Test Organization",
             address="123 Main St",
-            visible_to_str="3"
+            visible_to_str="3",
+            industry="Technology"
         )
         
         # Parse the JSON result
@@ -62,6 +63,7 @@ class TestCreateOrganizationTool:
         assert call_kwargs["name"] == "Test Organization"
         assert call_kwargs["address"] == {"value": "123 Main St"}
         assert call_kwargs["visible_to"] == 3
+        assert call_kwargs["industry"] == "Technology"
     
     @pytest.mark.asyncio
     async def test_create_organization_invalid_id(self, mock_pipedrive_client):
@@ -83,11 +85,44 @@ class TestCreateOrganizationTool:
         # Verify error response
         assert result_data["success"] is False
         assert "error" in result_data
-        assert "Invalid owner_id format" in result_data["error"]
+        assert "owner_id must be a numeric string" in result_data["error"]
         
         # Verify the client was not called
         mock_pipedrive_client.organizations.create_organization.assert_not_called()
     
+    @pytest.mark.asyncio
+    async def test_create_organization_with_custom_fields(self, mock_pipedrive_client):
+        """Test organization creation with custom fields"""
+        # Mock the context and lifespan context
+        mock_ctx = MagicMock(spec=Context)
+        mock_ctx.request_context.lifespan_context.pipedrive_client = mock_pipedrive_client
+        
+        # Custom fields dictionary
+        custom_fields = {
+            "cf_annual_revenue": 1000000,
+            "cf_company_size": "101-250"
+        }
+        
+        # Call the tool function
+        result = await create_organization_in_pipedrive(
+            ctx=mock_ctx,
+            name="Test Organization with Custom Fields",
+            custom_fields_dict=custom_fields
+        )
+        
+        # Parse the JSON result
+        result_data = json.loads(result)
+        
+        # Verify success and data
+        assert result_data["success"] is True
+        
+        # Verify the client was called with correct parameters
+        mock_pipedrive_client.organizations.create_organization.assert_called_once()
+        call_kwargs = mock_pipedrive_client.organizations.create_organization.call_args.kwargs
+        assert call_kwargs["name"] == "Test Organization with Custom Fields"
+        assert call_kwargs["cf_annual_revenue"] == 1000000
+        assert call_kwargs["cf_company_size"] == "101-250"
+        
     @pytest.mark.asyncio
     async def test_create_organization_api_error(self, mock_pipedrive_client):
         """Test handling of API errors"""

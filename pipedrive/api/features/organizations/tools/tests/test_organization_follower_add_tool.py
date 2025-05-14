@@ -39,7 +39,7 @@ class TestAddFollowerToOrganizationTool:
         # Call the tool function
         result = await add_follower_to_organization_in_pipedrive(
             ctx=mock_ctx,
-            id_str="123",
+            organization_id_str="123",
             user_id_str="789"
         )
         
@@ -69,7 +69,7 @@ class TestAddFollowerToOrganizationTool:
         # Call the tool function with invalid organization ID
         result = await add_follower_to_organization_in_pipedrive(
             ctx=mock_ctx,
-            id_str="not_a_number",
+            organization_id_str="not_a_number",
             user_id_str="789"
         )
         
@@ -79,7 +79,7 @@ class TestAddFollowerToOrganizationTool:
         # Verify error response
         assert result_data["success"] is False
         assert "error" in result_data
-        assert "Invalid organization_id format" in result_data["error"]
+        assert "organization_id must be a numeric string" in result_data["error"]
         
         # Verify the client was not called
         mock_pipedrive_client.organizations.add_follower.assert_not_called()
@@ -94,7 +94,7 @@ class TestAddFollowerToOrganizationTool:
         # Call the tool function with invalid user ID
         result = await add_follower_to_organization_in_pipedrive(
             ctx=mock_ctx,
-            id_str="123",
+            organization_id_str="123",
             user_id_str="not_a_number"
         )
         
@@ -104,7 +104,7 @@ class TestAddFollowerToOrganizationTool:
         # Verify error response
         assert result_data["success"] is False
         assert "error" in result_data
-        assert "Invalid user_id format" in result_data["error"]
+        assert "user_id must be a numeric string" in result_data["error"]
         
         # Verify the client was not called
         mock_pipedrive_client.organizations.add_follower.assert_not_called()
@@ -128,7 +128,7 @@ class TestAddFollowerToOrganizationTool:
         # Call the tool function
         result = await add_follower_to_organization_in_pipedrive(
             ctx=mock_ctx,
-            id_str="123",
+            organization_id_str="123",
             user_id_str="789"
         )
 

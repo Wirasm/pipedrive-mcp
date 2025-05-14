@@ -165,7 +165,7 @@ class TestListOrganizationsTool:
         # Verify error response
         assert result_data["success"] is False
         assert "error" in result_data
-        assert "Invalid limit format" in result_data["error"]
+        assert "limit must be a numeric string" in result_data["error"]
         
         # Verify the client was not called
         mock_pipedrive_client.organizations.list_organizations.assert_not_called()

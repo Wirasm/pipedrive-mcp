@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 
 from mcp.server.fastmcp import Context
 from pydantic import ValidationError
@@ -19,34 +19,65 @@ async def create_organization_in_pipedrive(
     owner_id_str: Optional[str] = None,
     address: Optional[str] = None,
     visible_to_str: Optional[str] = None,
+    industry: Optional[str] = None,
+    custom_fields_dict: Optional[Dict[str, Any]] = None,
 ) -> str:
     """
     Creates a new organization entity within the Pipedrive CRM.
     
-    This tool requires the organization's name and can optionally take details
-    like owner ID, address, and visibility settings.
-    It returns the details of the created organization upon success.
+    This tool creates a new organization with the specified details. Organization 
+    records represent companies and other organizations you interact with in Pipedrive.
     
-    args:
-    ctx: Context
-    name: str - The name of the organization
+    Format requirements:
+    - address: Must be a physical address in text format. Will be automatically formatted 
+      for the API. Example: "123 Main Street, New York, NY 10001"
+    - visible_to: Must be a value from 1-4 (1: Owner only, 2: Owner's visibility group, 
+      3: Entire company, 4: Specified users)
+    - industry: Industry classification as a string (commonly used values include 
+      "Technology", "Finance", "Healthcare", "Manufacturing", etc.)
+    - custom_fields_dict: JSON object containing custom field values, with field keys as defined 
+      in your Pipedrive account
     
-    owner_id_str: Optional[str] = None - The ID of the user who owns the organization
+    Usage example:
+    ```
+    create_organization_in_pipedrive(
+        name="Acme Corporation",
+        owner_id_str="12345",
+        address="123 Main St, San Francisco, CA 94107",
+        visible_to_str="3",
+        industry="Technology"
+    )
+    ```
     
-    address: Optional[str] = None - The address of the organization
+    Args:
+        ctx: Context
+        name: The name of the organization (required)
+        owner_id_str: The ID of the user who owns the organization. Example: "12345"
+        address: The physical address of the organization. Will be properly formatted for the API.
+            Example: "123 Main St, San Francisco, CA 94107"
+        visible_to_str: Visibility setting of the organization (1-4). 
+            1: Owner only, 2: Owner's visibility group, 3: Entire company, 4: Specified users.
+            Example: "3"
+        industry: Industry classification for the organization. 
+            Example: "Technology", "Finance", "Healthcare", etc.
+        custom_fields_dict: Dictionary of custom field values with field keys as defined in Pipedrive.
+            Example: {"cf_annual_revenue": 1000000, "cf_company_size": "101-250"}
     
-    visible_to_str: Optional[str] = None - Visibility setting of the organization (1-4)
+    Returns:
+        JSON string containing the created organization data if successful, or error details if failed
     """
     logger.debug(
         f"Tool 'create_organization_in_pipedrive' ENTERED with raw args: "
         f"name='{name}', owner_id_str={owner_id_str}, "
-        f"address={address}, visible_to_str={visible_to_str}"
+        f"address={address}, visible_to_str={visible_to_str}, "
+        f"industry={industry}, custom_fields_dict={custom_fields_dict}"
     )
 
     # Sanitize empty strings to None
     owner_id_str = None if owner_id_str == "" else owner_id_str
     address = None if address == "" else address
     visible_to_str = None if visible_to_str == "" else visible_to_str
+    industry = None if industry == "" else industry
 
     pd_mcp_ctx: PipedriveMCPContext = ctx.request_context.lifespan_context
 
@@ -62,16 +93,24 @@ async def create_organization_in_pipedrive(
         return format_tool_response(False, error_message=visible_error)
 
     try:
-        # Create Organization model instance with validation
-        # Convert address string to dictionary format for the API
-        address_dict = {"value": address} if address else None
+        # Format address using the organization model's helper method
+        address_dict = Organization.format_address(address)
         
+        # Create organization model instance with validation
         organization = Organization(
-            name=name, owner_id=owner_id, address=address_dict, visible_to=visible_to
+            name=name, 
+            owner_id=owner_id, 
+            address=address_dict, 
+            visible_to=visible_to,
+            industry=industry
         )
 
         # Convert model to API-compatible dict
         payload = organization.to_api_dict()
+        
+        # Add any custom fields to the payload
+        if custom_fields_dict:
+            payload.update(custom_fields_dict)
 
         logger.debug(f"Prepared payload for organization creation: {payload}")
 
