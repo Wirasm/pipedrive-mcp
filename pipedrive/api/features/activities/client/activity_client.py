@@ -32,9 +32,10 @@ class ActivityClient:
         busy: Optional[bool] = None,
         done: Optional[bool] = None,
         note: Optional[str] = None,
-        location: Optional[str] = None,
+        location: Optional[Union[str, Dict[str, Any]]] = None,
         public_description: Optional[str] = None,
         priority: Optional[int] = None,
+        participants: Optional[List[Dict[str, Any]]] = None,
     ) -> Dict[str, Any]:
         """
         Create a new activity in Pipedrive
@@ -45,17 +46,18 @@ class ActivityClient:
             owner_id: User ID of the activity owner
             deal_id: ID of the deal linked to the activity
             lead_id: UUID of the lead linked to the activity
-            person_id: ID of the person linked to the activity
+            person_id: ID of the person linked to the activity (NOTE: read-only field)
             org_id: ID of the organization linked to the activity
             due_date: Due date in ISO format (YYYY-MM-DD)
-            due_time: Due time in HH:MM:SS format
-            duration: Duration in HH:MM:SS format
+            due_time: Due time in HH:MM format
+            duration: Duration in HH:MM format
             busy: Whether the activity marks the assignee as busy
             done: Whether the activity is marked as done
             note: Note for the activity
-            location: Location of the activity
+            location: Location of the activity (string or location object)
             public_description: Public description of the activity
             priority: Priority of the activity
+            participants: List of participant objects with person_id
 
         Returns:
             Created activity data
@@ -79,7 +81,9 @@ class ActivityClient:
                 payload["deal_id"] = deal_id
             if lead_id is not None:
                 payload["lead_id"] = lead_id
+            # Note: person_id is a read-only field, use participants instead
             if person_id is not None:
+                logger.warning("person_id is a read-only field in Pipedrive API. Use participants instead.")
                 payload["person_id"] = person_id
             if org_id is not None:
                 payload["org_id"] = org_id
@@ -95,12 +99,22 @@ class ActivityClient:
                 payload["done"] = done
             if note is not None:
                 payload["note"] = note
+            
+            # Handle location which can be a string or object
             if location is not None:
-                payload["location"] = location
+                if isinstance(location, str):
+                    payload["location"] = {"value": location}
+                else:
+                    payload["location"] = location
+                    
             if public_description is not None:
                 payload["public_description"] = public_description
             if priority is not None:
                 payload["priority"] = priority
+                
+            # Add participants if provided
+            if participants is not None:
+                payload["participants"] = participants
 
             # Validate required fields
             if not subject or not subject.strip():
@@ -299,9 +313,10 @@ class ActivityClient:
         busy: Optional[bool] = None,
         done: Optional[bool] = None,
         note: Optional[str] = None,
-        location: Optional[str] = None,
+        location: Optional[Union[str, Dict[str, Any]]] = None,
         public_description: Optional[str] = None,
         priority: Optional[int] = None,
+        participants: Optional[List[Dict[str, Any]]] = None,
     ) -> Dict[str, Any]:
         """
         Update an existing activity in Pipedrive
@@ -313,17 +328,18 @@ class ActivityClient:
             owner_id: Updated user ID of the activity owner
             deal_id: Updated ID of the deal linked to the activity
             lead_id: Updated UUID of the lead linked to the activity
-            person_id: Updated ID of the person linked to the activity
+            person_id: Updated ID of the person linked to the activity (NOTE: read-only field)
             org_id: Updated ID of the organization linked to the activity
             due_date: Updated due date in ISO format (YYYY-MM-DD)
-            due_time: Updated due time in HH:MM:SS format
-            duration: Updated duration in HH:MM:SS format
+            due_time: Updated due time in HH:MM format
+            duration: Updated duration in HH:MM format
             busy: Updated busy flag
             done: Updated done flag
             note: Updated note for the activity
-            location: Updated location of the activity
+            location: Updated location of the activity (string or location object)
             public_description: Updated public description of the activity
             priority: Updated priority of the activity
+            participants: Updated list of participant objects with person_id
 
         Returns:
             Updated activity data
@@ -352,7 +368,9 @@ class ActivityClient:
                 payload["deal_id"] = deal_id
             if lead_id is not None:
                 payload["lead_id"] = lead_id
+            # Note: person_id is a read-only field, use participants instead
             if person_id is not None:
+                logger.warning("person_id is a read-only field in Pipedrive API. Use participants instead.")
                 payload["person_id"] = person_id
             if org_id is not None:
                 payload["org_id"] = org_id
@@ -368,12 +386,22 @@ class ActivityClient:
                 payload["done"] = done
             if note is not None:
                 payload["note"] = note
+                
+            # Handle location which can be a string or object
             if location is not None:
-                payload["location"] = location
+                if isinstance(location, str):
+                    payload["location"] = {"value": location}
+                else:
+                    payload["location"] = location
+                    
             if public_description is not None:
                 payload["public_description"] = public_description
             if priority is not None:
                 payload["priority"] = priority
+                
+            # Add participants if provided
+            if participants is not None:
+                payload["participants"] = participants
 
             # Ensure at least one field is being updated
             if not payload:

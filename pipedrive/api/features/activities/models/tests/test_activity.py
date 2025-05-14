@@ -7,12 +7,15 @@ from pipedrive.api.features.activities.models.activity import Activity
 class TestActivity:
     def test_valid_activity(self):
         """Test creating a valid Activity model"""
+        location_obj = {"value": "Test location"}
+        participants = [{"person_id": 123, "primary_flag": True}]
+        
         activity = Activity(
             subject="Test Activity",
             type="call",
             due_date="2023-01-01",
-            due_time="10:00:00",
-            duration="01:00:00",
+            due_time="10:00",
+            duration="01:00",
             owner_id=1,
             deal_id=2,
             lead_id="46c3b0e1-db35-59ca-1828-4817378dff71",
@@ -21,16 +24,17 @@ class TestActivity:
             busy=True,
             done=False,
             note="Test note",
-            location="Test location",
+            location=location_obj,
             public_description="Test description",
-            priority=1
+            priority=1,
+            participants=participants
         )
         
         assert activity.subject == "Test Activity"
         assert activity.type == "call"
         assert activity.due_date == "2023-01-01"
-        assert activity.due_time == "10:00:00"
-        assert activity.duration == "01:00:00"
+        assert activity.due_time == "10:00"
+        assert activity.duration == "01:00"
         assert activity.owner_id == 1
         assert activity.deal_id == 2
         assert activity.lead_id == "46c3b0e1-db35-59ca-1828-4817378dff71"
@@ -39,9 +43,10 @@ class TestActivity:
         assert activity.busy is True
         assert activity.done is False
         assert activity.note == "Test note"
-        assert activity.location == "Test location"
+        assert activity.location == location_obj
         assert activity.public_description == "Test description"
         assert activity.priority == 1
+        assert activity.participants == participants
         assert activity.id is None
     
     def test_required_fields(self):
@@ -107,13 +112,25 @@ class TestActivity:
     
     def test_due_time_validation(self):
         """Test due_time field validation"""
-        # Valid due_time
-        activity = Activity(subject="Test Activity", type="call", due_time="10:00:00")
-        assert activity.due_time == "10:00:00"
+        # Valid due_time in HH:MM format
+        activity = Activity(subject="Test Activity", type="call", due_time="10:00")
+        assert activity.due_time == "10:00"
         
-        # Invalid due_time format
+        # HH:MM:SS format is converted to HH:MM
+        activity = Activity(subject="Test Activity", type="call", due_time="10:00:00")
+        assert activity.due_time == "10:00"
+        
+        # ISO datetime format is converted to HH:MM
+        activity = Activity(subject="Test Activity", type="call", due_time="2023-01-01T10:00:00Z")
+        assert activity.due_time == "10:00"
+        
+        # Single-digit hour is fixed
+        activity = Activity(subject="Test Activity", type="call", due_time="1:30")
+        assert activity.due_time == "01:30"
+        
+        # Invalid time format
         with pytest.raises(ValidationError):
-            Activity(subject="Test Activity", type="call", due_time="10:00")
+            Activity(subject="Test Activity", type="call", due_time="invalid")
             
         # Empty due_time is converted to None
         activity = Activity(subject="Test Activity", type="call", due_time="")
@@ -125,23 +142,23 @@ class TestActivity:
     
     def test_duration_validation(self):
         """Test duration field validation"""
-        # Valid duration
-        activity = Activity(subject="Test Activity", type="call", duration="01:00:00")
-        assert activity.duration == "01:00:00"
-        
-        # HH:MM format is auto-completed to HH:MM:00
+        # Valid duration in HH:MM format
         activity = Activity(subject="Test Activity", type="call", duration="01:00")
-        assert activity.duration == "01:00:00"
+        assert activity.duration == "01:00"
         
-        # Single-digit hour with no leading zero is fixed
-        activity = Activity(subject="Test Activity", type="call", duration="1:00")
-        assert activity.duration == "01:00:00"
+        # HH:MM:SS format is converted to HH:MM
+        activity = Activity(subject="Test Activity", type="call", duration="01:00:00")
+        assert activity.duration == "01:00"
         
-        # Single-digit hour with seconds but no leading zero is fixed
-        activity = Activity(subject="Test Activity", type="call", duration="1:00:00")
-        assert activity.duration == "01:00:00"
+        # Seconds as integer string is converted to HH:MM
+        activity = Activity(subject="Test Activity", type="call", duration="3600")  # 1 hour
+        assert activity.duration == "01:00"
         
-        # Actually invalid duration format
+        # Single-digit hour is fixed
+        activity = Activity(subject="Test Activity", type="call", duration="1:30")
+        assert activity.duration == "01:30"
+        
+        # Invalid duration format
         with pytest.raises(ValidationError):
             Activity(subject="Test Activity", type="call", duration="invalid")
             
@@ -228,14 +245,43 @@ class TestActivity:
         with pytest.raises(ValidationError):
             Activity(subject="Test Activity", type="call", priority=1000)
     
+    def test_location_validation(self):
+        """Test location field validation"""
+        # Valid location as dictionary
+        location_obj = {"value": "Test location"}
+        activity = Activity(subject="Test Activity", type="call", location=location_obj)
+        assert activity.location == location_obj
+        
+        # Invalid location (must be a dictionary)
+        with pytest.raises(ValidationError):
+            Activity(subject="Test Activity", type="call", location="Test location")
+    
+    def test_participants_validation(self):
+        """Test participants field validation"""
+        # Valid participants
+        participants = [{"person_id": 123, "primary_flag": True}]
+        activity = Activity(subject="Test Activity", type="call", participants=participants)
+        assert activity.participants == participants
+        
+        # Invalid participants (not a list)
+        with pytest.raises(ValidationError):
+            Activity(subject="Test Activity", type="call", participants={"person_id": 123})
+        
+        # Invalid participants (missing person_id)
+        with pytest.raises(ValidationError):
+            Activity(subject="Test Activity", type="call", participants=[{"primary_flag": True}])
+    
     def test_to_api_dict(self):
         """Test conversion to API-compatible dictionary"""
+        location_obj = {"value": "Test location"}
+        participants = [{"person_id": 123, "primary_flag": True}]
+        
         activity = Activity(
             subject="Test Activity",
             type="call",
             due_date="2023-01-01",
-            due_time="10:00:00",
-            duration="01:00:00",
+            due_time="10:00",
+            duration="01:00",
             owner_id=1,
             deal_id=2,
             lead_id="46c3b0e1-db35-59ca-1828-4817378dff71",
@@ -245,9 +291,10 @@ class TestActivity:
             busy=True,
             done=False,
             note="Test note",
-            location="Test location",
+            location=location_obj,
             public_description="Test description",
             priority=1,
+            participants=participants,
             id=123
         )
         
@@ -257,8 +304,8 @@ class TestActivity:
         assert api_dict["subject"] == "Test Activity"
         assert api_dict["type"] == "call"
         assert api_dict["due_date"] == "2023-01-01"
-        assert api_dict["due_time"] == "10:00:00"
-        assert api_dict["duration"] == "01:00:00"
+        assert api_dict["due_time"] == "10:00"
+        assert api_dict["duration"] == "01:00"
         assert api_dict["owner_id"] == 1
         assert api_dict["deal_id"] == 2
         assert api_dict["lead_id"] == "46c3b0e1-db35-59ca-1828-4817378dff71"
@@ -268,22 +315,24 @@ class TestActivity:
         assert api_dict["busy"] is True
         assert api_dict["done"] is False
         assert api_dict["note"] == "Test note"
-        assert api_dict["location"] == "Test location"
+        assert api_dict["location"] == location_obj
         assert api_dict["public_description"] == "Test description"
         assert api_dict["priority"] == 1
+        assert api_dict["participants"] == participants
         
         # Check that the API dict excludes ID
         assert "id" not in api_dict
     
     def test_from_api_dict(self):
         """Test creation from API response dictionary"""
+        # API response with location as string (should be converted to dict)
         api_response = {
             "id": 123,
             "subject": "Test Activity",
             "type": "call",
             "due_date": "2023-01-01",
-            "due_time": "10:00:00",
-            "duration": "01:00:00",
+            "due_time": "10:00",
+            "duration": "01:00",
             "owner_id": 1,
             "deal_id": 2,
             "lead_id": "46c3b0e1-db35-59ca-1828-4817378dff71",
@@ -305,8 +354,8 @@ class TestActivity:
         assert activity.subject == "Test Activity"
         assert activity.type == "call"
         assert activity.due_date == "2023-01-01"
-        assert activity.due_time == "10:00:00"
-        assert activity.duration == "01:00:00"
+        assert activity.due_time == "10:00"
+        assert activity.duration == "01:00"
         assert activity.owner_id == 1
         assert activity.deal_id == 2
         assert activity.lead_id == "46c3b0e1-db35-59ca-1828-4817378dff71"
@@ -316,6 +365,23 @@ class TestActivity:
         assert activity.busy is True
         assert activity.done is False
         assert activity.note == "Test note"
-        assert activity.location == "Test location"
+        assert isinstance(activity.location, dict)
+        assert activity.location["value"] == "Test location"
         assert activity.public_description == "Test description"
         assert activity.priority == 1
+        
+        # API response with location as dict
+        location_obj = {"value": "Test location"}
+        api_response_with_location = dict(api_response)
+        api_response_with_location["location"] = location_obj
+        
+        activity = Activity.from_api_dict(api_response_with_location)
+        assert activity.location == location_obj
+        
+        # API response with participants
+        participants = [{"person_id": 123, "primary_flag": True}]
+        api_response_with_participants = dict(api_response_with_location)
+        api_response_with_participants["participants"] = participants
+        
+        activity = Activity.from_api_dict(api_response_with_participants)
+        assert activity.participants == participants

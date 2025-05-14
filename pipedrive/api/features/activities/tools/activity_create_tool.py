@@ -1,4 +1,5 @@
-from typing import Dict, Optional
+import re
+from typing import Dict, Optional, List, Any, Union
 
 from mcp.server.fastmcp import Context
 from pydantic import ValidationError
@@ -9,7 +10,10 @@ from pipedrive.api.features.shared.conversion.id_conversion import (
     convert_id_string, 
     validate_uuid_string,
     validate_date_string,
-    validate_time_string
+    convert_to_api_time_format,
+    convert_duration_to_api_format,
+    parse_location_data,
+    format_participants_data
 )
 from pipedrive.api.features.shared.utils import (
     format_tool_response,
@@ -38,9 +42,10 @@ async def create_activity_in_pipedrive(
     busy: Optional[bool] = None,
     done: Optional[bool] = None,
     note: Optional[str] = None,
-    location: Optional[str] = None,
+    location: Optional[Union[str, Dict[str, Any]]] = None,
     public_description: Optional[str] = None,
     priority: Optional[str] = None,
+    participants: Optional[List[Dict[str, Any]]] = None,
 ) -> str:
     """Creates a new activity in Pipedrive CRM.
 
@@ -52,11 +57,15 @@ async def create_activity_in_pipedrive(
     - owner_id, deal_id, org_id: Must be numeric strings (e.g., "123")
     - lead_id: Must be a UUID string (e.g., "123e4567-e89b-12d3-a456-426614174000")
     - due_date: Must be in YYYY-MM-DD format (e.g., "2025-01-15")
-    - due_time: IMPORTANT - The API expects ISO datetime format with timezone (e.g., "2025-01-15T14:30:00Z")
-    - duration: IMPORTANT - The API expects duration in seconds as an integer string (e.g., "3600" for 1 hour)
-    - busy, done: Boolean values as lowercase true or false
-    - priority: Must be a numeric string (e.g., "1")
-    - person_id: NOTE - This is a read-only field. To associate a person, you must use the participants parameter.
+    - due_time: Must be in HH:MM format (e.g., "14:30"). Also accepts HH:MM:SS format or
+      ISO datetime, which will be converted to HH:MM.
+    - duration: Must be in HH:MM format (e.g., "01:30"). Also accepts HH:MM:SS format or
+      seconds as a numeric string (e.g., "5400"), which will be converted to HH:MM.
+    - location: Can be a string address or a location object (e.g., {"value": "123 Main St"})
+    - participants: List of participant objects with person_id for associating persons
+      (e.g., [{"person_id": 123, "primary_flag": true}])
+    - person_id: NOTE - This is a read-only field. To associate a person, you MUST use
+      the participants parameter instead.
 
     Example:
     ```
@@ -65,9 +74,11 @@ async def create_activity_in_pipedrive(
         type="call",
         owner_id="123",
         due_date="2025-01-15",
-        due_time="2025-01-15T14:30:00Z",
-        duration="3600",
-        busy=true
+        due_time="14:30",
+        duration="01:30",
+        busy=true,
+        participants=[{"person_id": "123", "primary_flag": true}],
+        location="123 Main St, City"
     )
     ```
 
@@ -81,14 +92,15 @@ async def create_activity_in_pipedrive(
         person_id: Numeric ID of the person linked to the activity (NOTE: read-only field)
         org_id: Numeric ID of the organization linked to the activity
         due_date: Due date in YYYY-MM-DD format
-        due_time: Due time in ISO datetime format with timezone (e.g., "2025-01-15T14:30:00Z")
-        duration: Duration in seconds as a numeric string (e.g., "3600" for 1 hour)
+        due_time: Due time in HH:MM format (e.g., "14:30")
+        duration: Duration in HH:MM format (e.g., "01:30") or seconds (e.g., "5400")
         busy: Whether the activity marks the assignee as busy (true/false)
         done: Whether the activity is marked as done (true/false)
         note: Additional notes for the activity
-        location: Location of the activity as a string
+        location: Location of the activity as a string or location object
         public_description: Public description of the activity
         priority: Priority of the activity as a numeric string (e.g., "1")
+        participants: List of participant objects with person_id for associating persons
 
     Returns:
         JSON formatted response with the created activity data or error message
@@ -130,7 +142,7 @@ async def create_activity_in_pipedrive(
     due_time = sanitized["due_time"]
     duration = sanitized["duration"]
     note = sanitized["note"]
-    location = sanitized["location"]
+    location_input = sanitized["location"]
     public_description = sanitized["public_description"]
     priority_str = sanitized["priority"]
     
@@ -170,10 +182,12 @@ async def create_activity_in_pipedrive(
         return format_tool_response(False, error_message=person_error)
     
     # Add warning about person_id being read-only
-    if person_id:
-        logger.warning("Note: 'person_id' is a read-only field in the Pipedrive API. "
-                    "To associate a person with an activity, you should use participants instead. "
-                    "The person_id might not be set as expected.")
+    if person_id and not participants:
+        warning_message = "NOTE: 'person_id' is a read-only field in the Pipedrive API. " \
+                         "To associate a person with an activity, you MUST use the 'participants' parameter. " \
+                         "Your provided person_id will be ignored by the API."
+        logger.warning(warning_message)
+        # We'll still include it in the payload, but warn the user it won't work
     
     org_id_int, org_error = convert_id_string(org_id, "org_id", "123")
     if org_error:
@@ -201,39 +215,35 @@ async def create_activity_in_pipedrive(
         logger.error(date_error)
         return format_tool_response(False, error_message=date_error)
     
-    # Validate due_time format (ISO datetime)
-    if due_time:
-        # Simple ISO datetime validation (full validation would be more complex)
-        iso_pattern = r'^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$'
-        if not re.match(iso_pattern, due_time):
-            error_message = f"due_time must be in ISO datetime format with timezone. Example: '2025-01-15T14:30:00Z'"
-            logger.error(error_message)
-            return format_tool_response(False, error_message=error_message)
-        validated_due_time = due_time
-    else:
-        validated_due_time = None
+    # Convert due_time to API format (HH:MM)
+    validated_due_time, time_error = convert_to_api_time_format(due_time, "due_time")
+    if time_error:
+        logger.error(time_error)
+        return format_tool_response(False, error_message=time_error)
     
-    # Validate duration (seconds as a string)
-    if duration:
-        try:
-            duration_int = int(duration)
-            if duration_int < 0:
-                error_message = f"duration must be a positive integer representing seconds. Example: '3600' for 1 hour"
-                logger.error(error_message)
-                return format_tool_response(False, error_message=error_message)
-            validated_duration = duration
-        except ValueError:
-            error_message = f"duration must be a numeric string representing seconds. Example: '3600' for 1 hour"
-            logger.error(error_message)
-            return format_tool_response(False, error_message=error_message)
-    else:
-        validated_duration = None
+    # Convert duration to API format (HH:MM)
+    validated_duration, duration_error = convert_duration_to_api_format(duration, "duration")
+    if duration_error:
+        logger.error(duration_error)
+        return format_tool_response(False, error_message=duration_error)
+    
+    # Process location data
+    location_obj, location_error = parse_location_data(location_input)
+    if location_error:
+        logger.error(location_error)
+        return format_tool_response(False, error_message=location_error)
+    
+    # Format participants data if provided
+    formatted_participants, participants_error = format_participants_data(participants)
+    if participants_error:
+        logger.error(participants_error)
+        return format_tool_response(False, error_message=participants_error)
     
     # Convert priority string to integer
     priority_int = None
-    if priority:
+    if priority_str:
         try:
-            priority_int = int(priority)
+            priority_int = int(priority_str)
             if priority_int < 0:
                 error_message = f"Priority must be a positive integer. Example: '1'"
                 logger.error(error_message)
@@ -259,9 +269,10 @@ async def create_activity_in_pipedrive(
             busy=busy,
             done=done,
             note=note,
-            location=location,
+            location=location_obj,
             public_description=public_description,
-            priority=priority_int
+            priority=priority_int,
+            participants=formatted_participants
         )
         
         # Convert model to API-compatible dict

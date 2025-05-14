@@ -10,13 +10,24 @@ from pipedrive.api.features.tool_decorator import tool
 @tool("activities")
 async def get_activity_types_from_pipedrive(
     ctx: Context,
-):
+) -> str:
     """Gets all activity types from Pipedrive CRM.
 
     This tool retrieves all available activity types that can be used when creating activities.
+    Activity types define the different kinds of activities that can be logged in Pipedrive
+    (e.g., call, meeting, email, etc.). The response includes both default activity types
+    provided by Pipedrive and any custom types created for your account.
 
-    args:
-    ctx: Context
+    Example:
+    ```
+    get_activity_types_from_pipedrive()
+    ```
+
+    Args:
+        ctx: Context object provided by the MCP server
+
+    Returns:
+        JSON formatted response with all activity types or error message
     """
     logger.info("Tool 'get_activity_types_from_pipedrive' ENTERED")
     

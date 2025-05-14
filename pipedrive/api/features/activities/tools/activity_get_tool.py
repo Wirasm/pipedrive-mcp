@@ -1,10 +1,10 @@
-from typing import Optional
+from typing import Optional, List
 
 from mcp.server.fastmcp import Context
 
 from log_config import logger
 from pipedrive.api.features.shared.conversion.id_conversion import convert_id_string
-from pipedrive.api.features.shared.utils import format_tool_response, safe_split_to_list
+from pipedrive.api.features.shared.utils import format_tool_response, safe_split_to_list, sanitize_inputs
 from pipedrive.api.pipedrive_api_error import PipedriveAPIError
 from pipedrive.api.pipedrive_context import PipedriveMCPContext
 from pipedrive.api.features.tool_decorator import tool
@@ -13,24 +13,48 @@ from pipedrive.api.features.tool_decorator import tool
 @tool("activities")
 async def get_activity_from_pipedrive(
     ctx: Context,
-    id_str: str,
-    include_fields_str: Optional[str] = None
-):
+    id: str,
+    include_fields: Optional[str] = None
+) -> str:
     """Gets activity details from Pipedrive CRM.
 
-    This tool retrieves the details of a specific activity.
+    This tool retrieves the detailed information of a specific activity from Pipedrive.
+    It returns all fields of the activity record, including the current status, related
+    entities, and scheduling information.
 
-    args:
-    ctx: Context
-    id_str: str - The ID of the activity to retrieve
-    include_fields_str: Optional[str] = None - Comma-separated list of additional fields to include (e.g., "attendees")
+    Format requirements:
+    - id: Activity ID as a numeric string (e.g., "123")
+    - include_fields: Optional comma-separated list of additional fields to include
+      (e.g., "attendees")
+
+    Example:
+    ```
+    get_activity_from_pipedrive(
+        id="123",
+        include_fields="attendees"
+    )
+    ```
+
+    Args:
+        ctx: Context object provided by the MCP server
+        id: ID of the activity to retrieve
+        include_fields: Optional comma-separated list of additional fields to include
+
+    Returns:
+        JSON formatted response with the activity data or error message
     """
-    logger.info(f"Tool 'get_activity_from_pipedrive' ENTERED with raw args: id_str='{id_str}'")
+    logger.info(f"Tool 'get_activity_from_pipedrive' ENTERED with raw args: id='{id}'")
+    
+    # Sanitize inputs
+    inputs = {"id": id, "include_fields": include_fields}
+    sanitized = sanitize_inputs(inputs)
+    id_str = sanitized["id"]
+    include_fields_str = sanitized["include_fields"]
     
     pd_mcp_ctx: PipedriveMCPContext = ctx.request_context.lifespan_context
     
     # Convert activity ID string to integer with proper error handling
-    activity_id, id_error = convert_id_string(id_str, "activity_id")
+    activity_id, id_error = convert_id_string(id_str, "activity_id", "123")
     if id_error:
         logger.error(id_error)
         return format_tool_response(False, error_message=id_error)
@@ -41,13 +65,13 @@ async def get_activity_from_pipedrive(
         return format_tool_response(False, error_message=error_message)
     
     # Parse include_fields_str to list if provided
-    include_fields = safe_split_to_list(include_fields_str)
+    include_fields_list = safe_split_to_list(include_fields_str)
     
     try:
         # Call the Pipedrive API to get the activity
         activity_data = await pd_mcp_ctx.pipedrive_client.activities.get_activity(
             activity_id=activity_id,
-            include_fields=include_fields
+            include_fields=include_fields_list
         )
         
         if not activity_data:
