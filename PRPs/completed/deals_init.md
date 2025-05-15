@@ -9,7 +9,7 @@ description: |
   4. Creating a deal
   5. Updating a deal
   6. Deleting a deal
-  7. Managing deal products (add, update, delete)
+  7. Managing deal products (update, delete)
 
   ## Why
   - Provide a complete CRUD interface for Deal entity management through MCP
@@ -43,9 +43,10 @@ description: |
   - DELETE /api/v2/deals/{id}
   - Marks a deal as deleted
   
-  **Add Product to Deal**
-  - POST /api/v2/deals/{id}/products
-  - Adds a product to a deal, creating a new deal-product
+  ~~**Add Product to Deal**~~
+  ~~- POST /api/v2/deals/{id}/products~~
+  ~~- Adds a product to a deal, creating a new deal-product~~
+  (This endpoint has been removed)
   
   **Update Deal Product**
   - PATCH /api/v2/deals/{id}/products/{product_attachment_id}
@@ -84,7 +85,6 @@ description: |
   │   │   │   │       ├── deal_search_tool.py
   │   │   │   │       ├── deal_update_tool.py
   │   │   │   │       ├── deal_delete_tool.py
-  │   │   │   │       ├── deal_product_add_tool.py
   │   │   │   │       ├── deal_product_update_tool.py
   │   │   │   │       ├── deal_product_delete_tool.py
   │   │   │   │       └── tests
@@ -95,7 +95,6 @@ description: |
   │   │   │   │           ├── test_deal_search_tool.py
   │   │   │   │           ├── test_deal_update_tool.py
   │   │   │   │           ├── test_deal_delete_tool.py
-  │   │   │   │           ├── test_deal_product_add_tool.py
   │   │   │   │           ├── test_deal_product_update_tool.py
   │   │   │   │           └── test_deal_product_delete_tool.py
   ```
@@ -173,10 +172,6 @@ description: |
     - Return success response
 
   ### 4. Deal Product Tools
-  - Implement `add_product_to_deal_in_pipedrive` tool
-    - Required parameters: id_str, product_id_str, item_price, quantity
-    - Optional parameters: discount, comments, etc.
-    - Return product attachment details
 
   - Implement `update_product_in_deal_in_pipedrive` tool
     - Required parameters: id_str, product_attachment_id_str

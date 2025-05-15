@@ -8,7 +8,9 @@ from pipedrive.api.pipedrive_api_error import PipedriveAPIError
 
 
 @pytest.mark.asyncio
+@patch("pipedrive.api.features.tool_decorator.registry.is_feature_enabled", return_value=True)
 class TestSearchItemFieldInPipedrive:
+    
     @pytest.fixture
     def mock_context(self):
         """Create a mock context with a lifespan_context containing a mock pipedrive_client"""
@@ -21,7 +23,7 @@ class TestSearchItemFieldInPipedrive:
         mock_ctx.request_context.lifespan_context = mock_lifespan_ctx
         return mock_ctx
 
-    async def test_search_field_with_minimal_params(self, mock_context):
+    async def test_search_field_with_minimal_params(self, mock_registry, mock_context):
         """Test searching field with minimal parameters"""
         # Arrange
         term = "test"
@@ -57,7 +59,7 @@ class TestSearchItemFieldInPipedrive:
         assert result_dict["data"]["items"][0]["id"] == 1
         assert result_dict["data"]["items"][0]["name"] == "Test Person"
     
-    async def test_search_field_with_all_params(self, mock_context):
+    async def test_search_field_with_all_params(self, mock_registry, mock_context):
         """Test searching field with all parameters"""
         # Arrange
         term = "test"
@@ -104,7 +106,7 @@ class TestSearchItemFieldInPipedrive:
         assert len(result_dict["data"]["items"]) == 2
         assert result_dict["data"]["next_cursor"] == "another_page_token"
     
-    async def test_search_field_with_empty_results(self, mock_context):
+    async def test_search_field_with_empty_results(self, mock_registry, mock_context):
         """Test searching field with empty results"""
         # Arrange
         term = "nonexistent"
@@ -128,7 +130,7 @@ class TestSearchItemFieldInPipedrive:
         assert "message" in result_dict["data"]
         assert "No values found" in result_dict["data"]["message"]
     
-    async def test_search_field_with_invalid_term(self, mock_context):
+    async def test_search_field_with_invalid_term(self, mock_registry, mock_context):
         """Test searching field with invalid term"""
         # Arrange
         term = ""
@@ -143,7 +145,7 @@ class TestSearchItemFieldInPipedrive:
         assert result_dict["success"] is False
         assert result_dict["error"] == "Search term cannot be empty"
     
-    async def test_search_field_with_empty_entity_type(self, mock_context):
+    async def test_search_field_with_empty_entity_type(self, mock_registry, mock_context):
         """Test searching field with empty entity_type"""
         # Arrange
         term = "test"
@@ -158,7 +160,7 @@ class TestSearchItemFieldInPipedrive:
         assert result_dict["success"] is False
         assert result_dict["error"] == "Entity type cannot be empty"
     
-    async def test_search_field_with_empty_field(self, mock_context):
+    async def test_search_field_with_empty_field(self, mock_registry, mock_context):
         """Test searching field with empty field"""
         # Arrange
         term = "test"
@@ -173,7 +175,7 @@ class TestSearchItemFieldInPipedrive:
         assert result_dict["success"] is False
         assert result_dict["error"] == "Field key cannot be empty"
     
-    async def test_search_field_with_invalid_entity_type(self, mock_context):
+    async def test_search_field_with_invalid_entity_type(self, mock_registry, mock_context):
         """Test searching field with invalid entity_type"""
         # Arrange
         term = "test"
@@ -188,7 +190,7 @@ class TestSearchItemFieldInPipedrive:
         assert result_dict["success"] is False
         assert "Invalid entity type" in result_dict["error"]
     
-    async def test_search_field_with_invalid_match(self, mock_context):
+    async def test_search_field_with_invalid_match(self, mock_registry, mock_context):
         """Test searching field with invalid match"""
         # Arrange
         term = "test"
@@ -204,7 +206,7 @@ class TestSearchItemFieldInPipedrive:
         assert result_dict["success"] is False
         assert "Invalid match type" in result_dict["error"]
     
-    async def test_search_field_with_short_term_for_non_exact_match(self, mock_context):
+    async def test_search_field_with_short_term_for_non_exact_match(self, mock_registry, mock_context):
         """Test searching field with short term for non-exact match"""
         # Arrange
         term = "a"
@@ -220,7 +222,7 @@ class TestSearchItemFieldInPipedrive:
         assert result_dict["success"] is False
         assert "Search term must be at least 2 characters" in result_dict["error"]
     
-    async def test_search_field_with_invalid_limit(self, mock_context):
+    async def test_search_field_with_invalid_limit(self, mock_registry, mock_context):
         """Test searching field with invalid limit"""
         # Arrange
         term = "test"
@@ -248,7 +250,7 @@ class TestSearchItemFieldInPipedrive:
             cursor=None
         )
     
-    async def test_search_field_with_api_error(self, mock_context):
+    async def test_search_field_with_api_error(self, mock_registry, mock_context):
         """Test handling API errors"""
         # Arrange
         term = "test"
@@ -269,7 +271,7 @@ class TestSearchItemFieldInPipedrive:
         assert "API error" in result_dict["error"]
         assert result_dict["data"] == error_response
     
-    async def test_search_field_with_unexpected_error(self, mock_context):
+    async def test_search_field_with_unexpected_error(self, mock_registry, mock_context):
         """Test handling unexpected errors"""
         # Arrange
         term = "test"

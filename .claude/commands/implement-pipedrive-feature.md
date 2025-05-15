@@ -19,7 +19,7 @@ Throughout the implementation:
 - Update server.py to register new tools
 
 Validation:
-- always confirm with the user which feature is being implemented before you start
-- always run uv run pytest ensuring all tests pass before you finish
+- always confirm with the user which feature is being implemented and which prp and ai_docs file to read before you start
+- always run `uv run pytest` ensuring all tests pass before you finish
 
 When done, provide a summary of what was implemented and instructions for testing.

@@ -1,6 +1,6 @@
-Please analyze the Pipedrive MCP project structure to get a comprehensive understanding of the codebase.
+Please analyze the this project and its architecture to get a comprehensive understanding of the codebase.
 
-First, get an overview of the project structure:
+First, get an overview of the project architecture:
 
 Run this exact command
 ```bash
@@ -28,7 +28,7 @@ Use the Read tool to examine any other files that look important based on your i
 
 After studying these files, please provide:
 
-1. A short summary of the project structure and architecture
+1. A short summary of the project architecture
 2. The main components and how they interact
 3. The data flow from tool invocation to API interaction
 4. Key patterns used in the codebase

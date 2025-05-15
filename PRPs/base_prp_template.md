@@ -33,13 +33,21 @@ description: |
 
   ## Endpoints/APIs to Implement
   [If applicable, list the API endpoints or interfaces to be created/modified:]
-  
+
+  Example:
+  <Name> – [METHOD] /path – one-line purpose
+  - Params (typed)
+  - Success response shape
+  - Failure response shape
+
+  Example:
   **[Endpoint Name]**
   - [HTTP Method] [Path]
   - [Brief description]
   - [Key parameters]
   - [Response format]
-  
+
+  Example:
   **[Endpoint Name]**
   - [HTTP Method] [Path]
   - [Brief description]
@@ -64,8 +72,8 @@ description: |
   │   ├── [new file]
   │   └── [subdirectory]
   │       ├── [existing file]
-  │       ├── [new file]
-  │       └── [new file]
+  │       ├── [new file] Specify file content when appropriate
+  │       └── [new file] Specify file content when appropriate
   ```
 
   ## Files to Reference

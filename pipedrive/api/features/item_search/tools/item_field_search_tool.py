@@ -7,10 +7,10 @@ from pipedrive.api.features.item_search.models.search_result import FieldSearchR
 from pipedrive.api.features.shared.utils import format_tool_response, safe_split_to_list, sanitize_inputs
 from pipedrive.api.pipedrive_api_error import PipedriveAPIError
 from pipedrive.api.pipedrive_context import PipedriveMCPContext
-from pipedrive.mcp_instance import mcp
+from pipedrive.api.features.tool_decorator import tool
 
 
-@mcp.tool()
+@tool("item_search")
 async def search_item_field_in_pipedrive(
     ctx: Context,
     term: str,
@@ -20,29 +20,42 @@ async def search_item_field_in_pipedrive(
     limit_str: Optional[str] = "100",
     cursor: Optional[str] = None,
 ) -> str:
-    """Searches for values of a specific field in Pipedrive.
+    """Performs a field-specific search across a particular entity type in Pipedrive CRM.
     
-    This tool performs a field-specific search across a particular entity type in Pipedrive.
-    It is particularly useful for finding exact matches, retrieving autocomplete values,
-    or searching for specific field values within a given entity type.
+    This tool allows you to search for values in a specific field within deals, leads, persons, 
+    organizations, products, or projects. It's particularly useful for finding exact matches, 
+    retrieving autocomplete values, or searching for specific field values within a given entity type.
     
     Format requirements:
-    - term: Must be at least 2 characters (1 character if match is 'exact').
-      Example: "smith" will match names containing "smith"
-    - entity_type: The type of entity to search in. Valid types include: deal, 
-      person, organization, product, lead, project.
+    - term: Minimum 2 characters (or 1 character if match is "exact")
+      Case-insensitive
+      Example: "smith" will search for names containing "smith"
+    - entity_type: The type of entity to search in
+      Valid values: "deal", "lead", "person", "organization", "product", "project"
       Example: "person"
-    - field: The field key to search within. Field keys can be obtained from the API.
-      Common fields include: name, title, email, etc.
+    - field: The field key to search within
+      Common fields include: "name", "title", "email", etc.
+      Field keys can be obtained from the Pipedrive API
+      Only the following custom field types are searchable: address, varchar, text, varchar_auto, double, monetary and phone
       Example: "name"
-    - match: The type of match to perform. Valid values are: 
-      - "exact": Only exact matches (case sensitive)
-      - "beginning": Matches starting with the term
-      - "middle": Matches containing the term
-      Example: "beginning" with term "sm" would match "Smith" and "Smart"
-    - limit_str: Numeric string for max results per page (max 500).
-      Example: "250"
-    - cursor: Opaque string for pagination (obtained from a previous search result).
+    - match: The type of match to perform against the term
+      Default: "exact"
+      Options:
+        - "exact": Only exact matches (case insensitive)
+        - "beginning": Matches starting with the term
+        - "middle": Matches containing the term
+      
+      Examples:
+      For a field value "Smith":
+        - "exact" match with term "Smith" will find it
+        - "beginning" match with term "Sm" will find it
+        - "middle" match with term "mi" will find it
+    - limit_str: Maximum number of results to return per page
+      Default: "100"
+      Maximum value: "500"
+      Example: "50"
+    - cursor: Pagination cursor for fetching the next page of results
+      Obtained from previous search result response
       Example: "eyJmaWVsZCI6ImlkIiwiZmllbGRWYWx1ZSI6Nywic29ydERpcmVjdGlvbiI6ImFzYyIsImlkIjo3fQ"
     
     Example:
@@ -59,14 +72,16 @@ async def search_item_field_in_pipedrive(
     Args:
         ctx: Context object provided by the MCP server
         term: The search term to look for (min 2 chars, or 1 if match is 'exact')
-        entity_type: The type of entity to search (deal, person, organization, product, lead, project)
+        entity_type: The type of entity to search (deal, lead, person, organization, product, project)
         field: The field key to search in
         match: Type of match: exact, beginning, or middle
         limit_str: Maximum number of results to return per page (max 500)
         cursor: Pagination cursor for fetching the next page of results
     
     Returns:
-        JSON formatted response with field search results or error message
+        JSON formatted response with field search results or error message. When successful, the response includes:
+        - A list of matching items with their IDs and names
+        - Pagination information (next_cursor) if more results are available
     """
     logger.debug(
         f"Tool 'search_item_field_in_pipedrive' ENTERED with raw args: "
