@@ -21,10 +21,11 @@ class OrganizationClient:
         self,
         name: str,
         owner_id: Optional[int] = None,
-        address: Optional[str] = None,
+        address: Optional[Dict[str, str]] = None,
         visible_to: Optional[int] = None,
         label_ids: Optional[List[int]] = None,
         add_time: Optional[str] = None,  # Expected format "YYYY-MM-DD HH:MM:SS"
+        industry: Optional[str] = None,
         custom_fields: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
@@ -33,11 +34,14 @@ class OrganizationClient:
         Args:
             name: Name of the organization
             owner_id: User ID of the owner
-            address: Physical address of the organization
-            visible_to: Visibility setting
+            address: Physical address of the organization as a dictionary with 'value' key
+                Example: {"value": "123 Main St, City, Country"}
+            visible_to: Visibility setting (1-4)
+                1: Owner only, 2: Owner's visibility group, 3: Entire company, 4: Specified users
             label_ids: IDs of labels to assign to the organization
-            add_time: Creation timestamp
-            custom_fields: Custom field values
+            add_time: Creation timestamp in "YYYY-MM-DD HH:MM:SS" format
+            industry: Industry classification
+            custom_fields: Custom field values as a dictionary of field_key: value pairs
             
         Returns:
             Created organization data
@@ -55,6 +59,8 @@ class OrganizationClient:
             payload["label_ids"] = label_ids
         if add_time is not None:
             payload["add_time"] = add_time
+        if industry is not None:
+            payload["industry"] = industry
 
         if custom_fields:
             payload.update(custom_fields)
@@ -102,9 +108,10 @@ class OrganizationClient:
         organization_id: int,
         name: Optional[str] = None,
         owner_id: Optional[int] = None,
-        address: Optional[str] = None,
+        address: Optional[Dict[str, str]] = None,
         visible_to: Optional[int] = None,
         label_ids: Optional[List[int]] = None,
+        industry: Optional[str] = None,
         custom_fields: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
@@ -114,10 +121,13 @@ class OrganizationClient:
             organization_id: ID of the organization to update
             name: Updated name of the organization
             owner_id: Updated owner user ID
-            address: Updated address of the organization
-            visible_to: Updated visibility setting
+            address: Updated address of the organization as a dictionary with 'value' key
+                Example: {"value": "123 Main St, City, Country"}
+            visible_to: Updated visibility setting (1-4)
+                1: Owner only, 2: Owner's visibility group, 3: Entire company, 4: Specified users
             label_ids: Updated label IDs
-            custom_fields: Updated custom field values
+            industry: Updated industry classification
+            custom_fields: Updated custom field values as a dictionary of field_key: value pairs
             
         Returns:
             Updated organization data
@@ -138,6 +148,8 @@ class OrganizationClient:
             payload["visible_to"] = visible_to
         if label_ids is not None:
             payload["label_ids"] = label_ids
+        if industry is not None:
+            payload["industry"] = industry
 
         if custom_fields:
             payload.update(custom_fields)

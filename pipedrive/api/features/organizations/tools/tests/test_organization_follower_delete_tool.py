@@ -37,7 +37,7 @@ class TestDeleteFollowerFromOrganizationTool:
         # Call the tool function
         result = await delete_follower_from_organization_in_pipedrive(
             ctx=mock_ctx,
-            id_str="123",
+            organization_id_str="123",
             follower_id_str="456"
         )
         
@@ -66,7 +66,7 @@ class TestDeleteFollowerFromOrganizationTool:
         # Call the tool function with invalid organization ID
         result = await delete_follower_from_organization_in_pipedrive(
             ctx=mock_ctx,
-            id_str="not_a_number",
+            organization_id_str="not_a_number",
             follower_id_str="456"
         )
         
@@ -76,7 +76,7 @@ class TestDeleteFollowerFromOrganizationTool:
         # Verify error response
         assert result_data["success"] is False
         assert "error" in result_data
-        assert "Invalid organization_id format" in result_data["error"]
+        assert "organization_id must be a numeric string" in result_data["error"]
         
         # Verify the client was not called
         mock_pipedrive_client.organizations.delete_follower.assert_not_called()
@@ -91,7 +91,7 @@ class TestDeleteFollowerFromOrganizationTool:
         # Call the tool function with invalid follower ID
         result = await delete_follower_from_organization_in_pipedrive(
             ctx=mock_ctx,
-            id_str="123",
+            organization_id_str="123",
             follower_id_str="not_a_number"
         )
         
@@ -101,7 +101,7 @@ class TestDeleteFollowerFromOrganizationTool:
         # Verify error response
         assert result_data["success"] is False
         assert "error" in result_data
-        assert "Invalid follower_id format" in result_data["error"]
+        assert "follower_id must be a numeric string" in result_data["error"]
         
         # Verify the client was not called
         mock_pipedrive_client.organizations.delete_follower.assert_not_called()
@@ -125,7 +125,7 @@ class TestDeleteFollowerFromOrganizationTool:
         # Call the tool function
         result = await delete_follower_from_organization_in_pipedrive(
             ctx=mock_ctx,
-            id_str="123",
+            organization_id_str="123",
             follower_id_str="999"
         )
 

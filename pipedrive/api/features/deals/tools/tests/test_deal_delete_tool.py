@@ -58,7 +58,7 @@ class TestDeleteDealTool:
 
         # Verify error response
         assert response["success"] is False
-        assert "Invalid deal_id format" in response["error"]
+        assert "deal_id must be a numeric string" in response["error"]
 
         # Verify that delete_deal was not called
         delete_deal_mock = mock_context.request_context.lifespan_context.pipedrive_client.deals.delete_deal

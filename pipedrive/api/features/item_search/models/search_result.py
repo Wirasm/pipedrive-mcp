@@ -3,7 +3,35 @@ from pydantic import BaseModel, Field, field_validator
 
 
 class SearchResult(BaseModel):
-    """Model representing an item search result from Pipedrive"""
+    """Model representing an item search result from Pipedrive API.
+    
+    This model captures all possible fields that can be returned for different
+    entity types in Pipedrive search results. Not all fields will be present
+    for all entity types.
+    
+    Fields:
+        id: Unique identifier of the found item
+        type: Type of the found item (deal, person, organization, etc.)
+        result_score: Relevance score of this search result
+        name: Name of the item (present for most entity types)
+        title: Title of the item (present for deals, leads)
+        email: Email addresses (for persons, may include multiple entries)
+        phone: Phone numbers (for persons, may include multiple entries)
+        organization_name: Name of related organization
+        person_name: Name of related person
+        address: Address information
+        code: Product code (for products)
+        visible_to: Visibility setting (1-4)
+        notes: Notes associated with the item (may include multiple entries)
+        custom_fields: Custom fields defined for this entity type
+        value: Deal value (for deals)
+        currency: Deal currency (for deals)
+        status: Deal status (for deals)
+        url: URL for file download (for files and mail attachments)
+        person: Related person details
+        organization: Related organization details
+        deal: Related deal details
+    """
 
     id: int
     type: str
@@ -37,7 +65,7 @@ class SearchResult(BaseModel):
     
     @field_validator('type')
     def validate_type(cls, v):
-        """Validate the item type"""
+        """Validate the item type against allowable Pipedrive entity types."""
         valid_types = [
             'deal', 'person', 'organization', 'product', 
             'lead', 'file', 'mail_attachment', 'project'
@@ -48,7 +76,11 @@ class SearchResult(BaseModel):
     
     @classmethod
     def from_api_response(cls, api_data: Dict[str, Any]) -> "SearchResult":
-        """Create a SearchResult instance from Pipedrive API response data
+        """Create a SearchResult instance from Pipedrive API response data.
+        
+        This method normalizes the API response data to fit the model structure,
+        handling various edge cases and data format inconsistencies that may be
+        present in the Pipedrive API response.
         
         Args:
             api_data: Item search result data from Pipedrive API
@@ -85,7 +117,24 @@ class SearchResult(BaseModel):
 
 
 class ItemSearchResults(BaseModel):
-    """Model representing a collection of search results with metadata"""
+    """Model representing a collection of search results with metadata.
+    
+    This model organizes search results by item type and provides counts
+    for each type for easier analysis and filtering.
+    
+    Fields:
+        items: List of individual search results
+        total_count: Total number of found items across all types
+        next_cursor: Pagination cursor for retrieving the next page of results
+        deal_count: Number of deals in the results
+        person_count: Number of persons in the results
+        organization_count: Number of organizations in the results
+        product_count: Number of products in the results
+        lead_count: Number of leads in the results
+        file_count: Number of files in the results
+        mail_attachment_count: Number of mail attachments in the results
+        project_count: Number of projects in the results
+    """
     
     items: List[SearchResult]
     total_count: Optional[int] = None
@@ -103,13 +152,17 @@ class ItemSearchResults(BaseModel):
     
     @classmethod
     def from_api_response(cls, api_data: Dict[str, Any]) -> "ItemSearchResults":
-        """Create an ItemSearchResults instance from Pipedrive API response data
+        """Create an ItemSearchResults instance from Pipedrive API response data.
+        
+        This method processes the API response data to build a structured
+        collection of search results with type-specific counts.
         
         Args:
-            api_data: Item search results data from Pipedrive API
+            api_data: Item search results data from Pipedrive API,
+                should contain 'items' array and optional 'next_cursor'
             
         Returns:
-            ItemSearchResults instance with parsed data
+            ItemSearchResults instance with parsed and categorized data
         """
         # Process items array
         items_data = api_data.get("items", [])
@@ -130,14 +183,22 @@ class ItemSearchResults(BaseModel):
 
 
 class FieldSearchResult(BaseModel):
-    """Model representing a field search result from Pipedrive"""
+    """Model representing a field search result from Pipedrive API.
+    
+    This model represents an individual item found when searching
+    for specific field values.
+    
+    Fields:
+        id: Unique identifier of the entity containing this field value
+        name: The matched field value
+    """
     
     id: int
     name: str
     
     @classmethod
     def from_api_response(cls, api_data: Dict[str, Any]) -> "FieldSearchResult":
-        """Create a FieldSearchResult instance from Pipedrive API response data
+        """Create a FieldSearchResult instance from Pipedrive API response data.
         
         Args:
             api_data: Field search result data from Pipedrive API
@@ -149,17 +210,29 @@ class FieldSearchResult(BaseModel):
 
 
 class FieldSearchResults(BaseModel):
-    """Model representing a collection of field search results with metadata"""
+    """Model representing a collection of field search results with metadata.
+    
+    This model organizes field-specific search results and provides
+    pagination support.
+    
+    Fields:
+        items: List of individual field search results
+        next_cursor: Pagination cursor for retrieving the next page of results
+    """
     
     items: List[FieldSearchResult]
     next_cursor: Optional[str] = None
     
     @classmethod
     def from_api_response(cls, api_data: Dict[str, Any]) -> "FieldSearchResults":
-        """Create a FieldSearchResults instance from Pipedrive API response data
+        """Create a FieldSearchResults instance from Pipedrive API response data.
+        
+        This method processes the API response data to build a structured
+        collection of field search results.
         
         Args:
-            api_data: Field search results data from Pipedrive API
+            api_data: Field search results data from Pipedrive API,
+                should contain 'items' array and optional 'next_cursor'
             
         Returns:
             FieldSearchResults instance with parsed data

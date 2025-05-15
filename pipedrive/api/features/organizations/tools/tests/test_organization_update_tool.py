@@ -138,7 +138,7 @@ class TestUpdateOrganizationTool:
         # Verify error response
         assert result_data["success"] is False
         assert "error" in result_data
-        assert "Invalid organization_id format" in result_data["error"]
+        assert "organization_id must be a numeric string" in result_data["error"]
         
         # Verify the client was not called
         mock_pipedrive_client.organizations.update_organization.assert_not_called()

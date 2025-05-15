@@ -183,7 +183,7 @@ class TestSearchDealsTool:
 
         # Verify error response
         assert response["success"] is False
-        assert "Invalid person_id format" in response["error"]
+        assert "person_id must be a numeric string" in response["error"]
 
         # Verify that search_deals was not called
         search_deals_mock = mock_context.request_context.lifespan_context.pipedrive_client.deals.search_deals

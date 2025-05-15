@@ -68,6 +68,81 @@ class TestUpdatePersonTool:
         assert call_kwargs["phones"][0]["label"] == "mobile"
     
     @pytest.mark.asyncio
+    async def test_update_person_with_custom_fields(self, mock_pipedrive_client):
+        """Test updating a person with custom fields"""
+        # Mock the context and lifespan context
+        mock_ctx = MagicMock(spec=Context)
+        mock_ctx.request_context.lifespan_context.pipedrive_client = mock_pipedrive_client
+        
+        # Call the tool function with custom fields
+        custom_fields_str = '{"customer_type": "Premium", "lead_source": "Website"}'
+        result = await update_person_in_pipedrive(
+            ctx=mock_ctx,
+            id_str="123",
+            name="Updated Person",
+            custom_fields_str=custom_fields_str
+        )
+        
+        # Parse the JSON result
+        result_data = json.loads(result)
+        
+        # Verify success
+        assert result_data["success"] is True
+        
+        # Verify the client was called with correct custom fields
+        call_kwargs = mock_pipedrive_client.persons.update_person.call_args.kwargs
+        assert call_kwargs["customer_type"] == "Premium"
+        assert call_kwargs["lead_source"] == "Website"
+    
+    @pytest.mark.asyncio
+    async def test_update_person_remove_organization(self, mock_pipedrive_client):
+        """Test removing organization association"""
+        # Mock the context and lifespan context
+        mock_ctx = MagicMock(spec=Context)
+        mock_ctx.request_context.lifespan_context.pipedrive_client = mock_pipedrive_client
+        
+        # Call the tool function with null org_id
+        result = await update_person_in_pipedrive(
+            ctx=mock_ctx,
+            id_str="123",
+            org_id_str="null"  # Special value to remove org association
+        )
+        
+        # Parse the JSON result
+        result_data = json.loads(result)
+        
+        # Verify success
+        assert result_data["success"] is True
+        
+        # Verify the client was called with null org_id
+        call_kwargs = mock_pipedrive_client.persons.update_person.call_args.kwargs
+        assert call_kwargs["org_id"] is None
+    
+    @pytest.mark.asyncio
+    async def test_update_person_clear_emails(self, mock_pipedrive_client):
+        """Test clearing all emails"""
+        # Mock the context and lifespan context
+        mock_ctx = MagicMock(spec=Context)
+        mock_ctx.request_context.lifespan_context.pipedrive_client = mock_pipedrive_client
+        
+        # Call the tool function with empty email
+        result = await update_person_in_pipedrive(
+            ctx=mock_ctx,
+            id_str="123",
+            email_address=""  # Empty string clears all emails
+        )
+        
+        # Parse the JSON result
+        result_data = json.loads(result)
+        
+        # Verify success
+        assert result_data["success"] is True
+        
+        # Verify the client was called with empty emails list
+        call_kwargs = mock_pipedrive_client.persons.update_person.call_args.kwargs
+        assert call_kwargs["emails"] == []
+    
+    @pytest.mark.asyncio
     async def test_update_person_no_fields(self, mock_pipedrive_client):
         """Test error handling when no update fields are provided"""
         # Mock the context and lifespan context
@@ -111,7 +186,57 @@ class TestUpdatePersonTool:
         # Verify error response
         assert result_data["success"] is False
         assert "error" in result_data
-        assert "Invalid person_id format" in result_data["error"]
+        assert "person_id must be a numeric string" in result_data["error"]
+        
+        # Verify the client was not called
+        mock_pipedrive_client.persons.update_person.assert_not_called()
+    
+    @pytest.mark.asyncio
+    async def test_update_person_invalid_email_format(self, mock_pipedrive_client):
+        """Test error handling with invalid email format"""
+        # Mock the context and lifespan context
+        mock_ctx = MagicMock(spec=Context)
+        mock_ctx.request_context.lifespan_context.pipedrive_client = mock_pipedrive_client
+        
+        # Call the tool function with invalid email
+        result = await update_person_in_pipedrive(
+            ctx=mock_ctx,
+            id_str="123",
+            email_address="invalid-email-format"
+        )
+        
+        # Parse the JSON result
+        result_data = json.loads(result)
+        
+        # Verify error response
+        assert result_data["success"] is False
+        assert "error" in result_data
+        assert "Invalid email format" in result_data["error"]
+        
+        # Verify the client was not called
+        mock_pipedrive_client.persons.update_person.assert_not_called()
+    
+    @pytest.mark.asyncio
+    async def test_update_person_invalid_visible_to(self, mock_pipedrive_client):
+        """Test error handling with invalid visible_to value"""
+        # Mock the context and lifespan context
+        mock_ctx = MagicMock(spec=Context)
+        mock_ctx.request_context.lifespan_context.pipedrive_client = mock_pipedrive_client
+        
+        # Call the tool function with invalid visible_to
+        result = await update_person_in_pipedrive(
+            ctx=mock_ctx,
+            id_str="123",
+            visible_to_str="5"  # Only 1, 2, 3 are valid
+        )
+        
+        # Parse the JSON result
+        result_data = json.loads(result)
+        
+        # Verify error response
+        assert result_data["success"] is False
+        assert "error" in result_data
+        assert "Invalid visible_to value" in result_data["error"]
         
         # Verify the client was not called
         mock_pipedrive_client.persons.update_person.assert_not_called()

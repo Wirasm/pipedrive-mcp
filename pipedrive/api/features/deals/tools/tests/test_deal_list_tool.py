@@ -128,7 +128,7 @@ class TestListDealsTool:
 
         # Verify error response
         assert response["success"] is False
-        assert "Invalid filter_id format" in response["error"]
+        assert "filter_id must be a numeric string" in response["error"]
 
         # Verify that list_deals was not called
         list_deals_mock = mock_context.request_context.lifespan_context.pipedrive_client.deals.list_deals

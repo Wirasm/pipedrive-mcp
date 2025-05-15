@@ -10,7 +10,7 @@ from pipedrive.api.pipedrive_context import PipedriveMCPContext
 from pipedrive.mcp_instance import mcp
 
 
-@mcp.tool()
+@mcp.tool("list_deals_from_pipedrive")
 async def list_deals_from_pipedrive(
     ctx: Context,
     limit_str: Optional[str] = "100",
@@ -31,12 +31,47 @@ async def list_deals_from_pipedrive(
 ) -> str:
     """Lists deals from Pipedrive CRM with filtering and pagination.
 
-    Returns a list of deals with optional filtering based on various criteria.
-    Results can be paginated using the cursor parameter.
+    This tool retrieves a list of deals from Pipedrive with powerful filtering options.
+    Results are returned in pages, with cursor-based pagination for handling large result sets.
+    You can filter deals by owner, person, organization, pipeline, stage, status, and more.
+    
+    Format requirements:
+    - limit_str: Maximum number of deals to return (1-500, default 100)
+    - cursor: Opaque pagination cursor from a previous response
+    - *_id_str: Numeric ID strings (e.g. "123")
+    - status: One of "open", "won", "lost", or "deleted"
+    - sort_by: One of "id", "update_time", or "add_time"
+    - sort_direction: Either "asc" or "desc"
+    - updated_since/updated_until: RFC3339 format (e.g. "2025-01-01T10:20:00Z")
+    
+    Pipeline and Stage Filtering:
+    - Use pipeline_id_str to filter deals in a specific pipeline
+    - Use stage_id_str to filter deals in a specific stage 
+    - You can use both together to filter deals that are in a specific stage of a specific pipeline
+    
+    Including Additional Fields:
+    - include_fields_str: Comma-separated list of additional fields to include
+      (e.g. "products_count,activities_count,participants_count")
+    - custom_fields_str: Comma-separated list of custom field keys to include
+    
+    Pagination:
+    - The response includes a next_cursor value when there are more results
+    - To get the next page, pass this cursor value in your next request
+    
+    Example usage:
+    ```
+    list_deals_from_pipedrive(
+        limit_str="50",
+        pipeline_id_str="1",
+        status="open",
+        sort_by="update_time",
+        sort_direction="desc"
+    )
+    ```
 
     args:
     ctx: Context
-    limit_str: Optional[str] = "100" - Maximum number of results to return (max 500)
+    limit_str: Optional[str] = "100" - Maximum number of results to return (1-500)
     cursor: Optional[str] = None - Pagination cursor for retrieving the next page
     filter_id_str: Optional[str] = None - ID of the filter to apply
     owner_id_str: Optional[str] = None - Filter by owner user ID
@@ -44,12 +79,12 @@ async def list_deals_from_pipedrive(
     org_id_str: Optional[str] = None - Filter by organization ID
     pipeline_id_str: Optional[str] = None - Filter by pipeline ID
     stage_id_str: Optional[str] = None - Filter by stage ID
-    status: Optional[str] = None - Filter by status (open, won, lost)
-    sort_by: Optional[str] = None - Field to sort by (id, update_time, add_time)
-    sort_direction: Optional[str] = None - Sort direction (asc or desc)
+    status: Optional[str] = None - Filter by status ("open", "won", "lost", or "deleted")
+    sort_by: Optional[str] = None - Field to sort by ("id", "update_time", "add_time")
+    sort_direction: Optional[str] = None - Sort direction ("asc" or "desc")
     include_fields_str: Optional[str] = None - Comma-separated list of additional fields to include
     custom_fields_str: Optional[str] = None - Comma-separated list of custom fields to include
-    updated_since: Optional[str] = None - Filter by update time (RFC3339 format, e.g. 2025-01-01T10:20:00Z)
+    updated_since: Optional[str] = None - Filter by update time (RFC3339 format, e.g. "2025-01-01T10:20:00Z")
     updated_until: Optional[str] = None - Filter by update time (RFC3339 format)
     """
     logger.debug(

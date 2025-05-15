@@ -122,7 +122,7 @@ class TestCreateDealTool:
 
         # Verify error response
         assert response["success"] is False
-        assert "Invalid person_id format" in response["error"]
+        assert "person_id must be a numeric string" in response["error"]
 
         # Verify that create_deal was not called
         create_deal_mock = mock_context.request_context.lifespan_context.pipedrive_client.deals.create_deal

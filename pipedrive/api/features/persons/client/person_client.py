@@ -6,7 +6,19 @@ from pipedrive.api.base_client import BaseClient
 
 
 class PersonClient:
-    """Client for Pipedrive Person API endpoints"""
+    """Client for Pipedrive Person API endpoints
+    
+    This client provides methods for interacting with the Pipedrive Person API,
+    including creating, retrieving, updating, and deleting person records.
+    It also supports searching and listing persons with various filters.
+    
+    The client handles proper formatting of all API requests according to
+    Pipedrive's requirements, including specialized handling for:
+    - Contact information (emails and phones)
+    - Organization associations
+    - Visibility settings
+    - Custom fields
+    """
 
     def __init__(self, base_client: BaseClient):
         """
@@ -31,20 +43,46 @@ class PersonClient:
         """
         Create a new person in Pipedrive
         
+        Creates a new person record with the provided information, including contact details,
+        organization association, and visibility settings.
+        
+        Format requirements:
+        - name: Required person name
+        - emails: List of objects with value, label, and primary fields
+          Example: [{"value": "email@example.com", "label": "work", "primary": true}]
+        - phones: List of objects with value, label, and primary fields
+          Example: [{"value": "+1234567890", "label": "work", "primary": true}]
+        - visible_to: Integer visibility setting (1-3), where:
+          1 = Owner only
+          2 = Owner's visibility group
+          3 = Entire company
+        - org_id: Integer ID of organization to associate with the person
+        
         Args:
             name: Full name of the person
             owner_id: User ID of the owner
             org_id: Organization ID to link the person to
             emails: List of email objects
             phones: List of phone objects
-            visible_to: Visibility setting
+            visible_to: Visibility setting (1=Owner, 2=Owner's group, 3=Entire company)
             add_time: Creation timestamp
             custom_fields: Custom field values
             
         Returns:
             Created person data
+            
+        Raises:
+            ValueError: If validation fails for visible_to or organization parameters
         """
         logger.info(f"PersonClient: Attempting to create person '{name}'")
+        
+        # Validate visible_to if provided
+        if visible_to is not None and visible_to not in {1, 2, 3}:
+            raise ValueError(
+                f"Invalid visible_to value: {visible_to}. "
+                f"Must be one of [1, 2, 3] (1=Owner only, 2=Owner's group, 3=Entire company)"
+            )
+            
         payload: Dict[str, Any] = {"name": name}
         
         if owner_id is not None:
@@ -78,13 +116,37 @@ class PersonClient:
         """
         Get a person by ID from Pipedrive
         
+        Retrieves detailed information about a specific person, with options
+        to include additional fields and specific custom fields.
+        
         Args:
             person_id: ID of the person to retrieve
-            include_fields: Additional fields to include
-            custom_fields_keys: Custom fields to include
+            include_fields: Additional fields to include. Options include:
+                - next_activity_id
+                - last_activity_id
+                - open_deals_count
+                - related_open_deals_count
+                - closed_deals_count
+                - related_closed_deals_count
+                - participant_open_deals_count
+                - participant_closed_deals_count
+                - email_messages_count
+                - activities_count
+                - done_activities_count
+                - undone_activities_count
+                - files_count
+                - notes_count
+                - followers_count
+                - won_deals_count
+                - related_won_deals_count
+                - lost_deals_count
+                - related_lost_deals_count
+                - last_incoming_mail_time
+                - last_outgoing_mail_time
+            custom_fields_keys: Custom fields to include (max 15 keys)
             
         Returns:
-            Person data
+            Person data including all requested fields
         """
         logger.info(f"PersonClient: Attempting to get person with ID {person_id}")
         query_params: Dict[str, Any] = {}
@@ -115,6 +177,23 @@ class PersonClient:
         """
         Update an existing person in Pipedrive
         
+        Updates a person record with the provided information. Only fields that
+        are provided will be updated; others remain unchanged.
+        
+        Format requirements:
+        - emails: List of objects with value, label, and primary fields
+          Example: [{"value": "email@example.com", "label": "work", "primary": true}]
+          Send empty list [] to clear all emails
+        - phones: List of objects with value, label, and primary fields
+          Example: [{"value": "+1234567890", "label": "work", "primary": true}]
+          Send empty list [] to clear all phones
+        - visible_to: Integer visibility setting (1-3), where:
+          1 = Owner only
+          2 = Owner's visibility group
+          3 = Entire company
+        - org_id: Integer ID of organization to associate with the person
+          Set to null to remove organization association
+        
         Args:
             person_id: ID of the person to update
             name: Updated name of the person
@@ -129,9 +208,17 @@ class PersonClient:
             Updated person data
             
         Raises:
-            ValueError: If no fields are provided to update
+            ValueError: If no fields are provided to update or if validation fails
         """
         logger.info(f"PersonClient: Attempting to update person with ID {person_id}")
+        
+        # Validate visible_to if provided
+        if visible_to is not None and visible_to not in {1, 2, 3}:
+            raise ValueError(
+                f"Invalid visible_to value: {visible_to}. "
+                f"Must be one of [1, 2, 3] (1=Owner only, 2=Owner's group, 3=Entire company)"
+            )
+            
         payload: Dict[str, Any] = {}
         
         if name is not None:
@@ -171,6 +258,9 @@ class PersonClient:
         """
         Delete a person from Pipedrive
         
+        Marks a person as deleted. After 30 days, the person will be permanently deleted 
+        from Pipedrive.
+        
         Args:
             person_id: ID of the person to delete
             
@@ -204,16 +294,24 @@ class PersonClient:
         """
         List persons from Pipedrive with pagination
         
+        Retrieves a paginated list of persons with optional filtering, sorting,
+        and field selection.
+        
+        Format requirements:
+        - sort_by: One of ["id", "update_time", "add_time"]
+        - sort_direction: One of ["asc", "desc"]
+        - updated_since/updated_until: RFC3339 format, e.g. 2025-01-01T10:20:00Z
+        
         Args:
-            limit: Maximum number of results to return
+            limit: Maximum number of results to return (max 500)
             cursor: Pagination cursor for retrieving the next page
             filter_id: ID of the filter to apply
             owner_id: Filter by owner user ID
             org_id: Filter by organization ID
-            sort_by: Field to sort by
+            sort_by: Field to sort by (id, update_time, add_time)
             sort_direction: Sort direction (asc or desc)
             include_fields: Additional fields to include
-            custom_fields_keys: Custom fields to include
+            custom_fields_keys: Custom fields to include (max 15 keys)
             updated_since: Filter by update time (RFC3339 format)
             updated_until: Filter by update time (RFC3339 format)
             
@@ -223,6 +321,20 @@ class PersonClient:
         logger.info(
             f"PersonClient: Attempting to list persons with limit {limit}, cursor '{cursor}'"
         )
+        
+        # Validate sort parameters if provided
+        if sort_by is not None and sort_by not in {"id", "update_time", "add_time"}:
+            raise ValueError(
+                f"Invalid sort_by value: {sort_by}. "
+                f"Must be one of ['id', 'update_time', 'add_time']"
+            )
+            
+        if sort_direction is not None and sort_direction not in {"asc", "desc"}:
+            raise ValueError(
+                f"Invalid sort_direction value: {sort_direction}. "
+                f"Must be one of ['asc', 'desc']"
+            )
+            
         query_params: Dict[str, Any] = {
             "limit": limit,
             "cursor": cursor,
@@ -275,7 +387,20 @@ class PersonClient:
     ) -> Tuple[List[Dict[str, Any]], Optional[str]]:
         """
         Search for persons in Pipedrive
-
+        
+        Searches for persons matching the provided term with options for field selection,
+        exact matching, organization filtering, and pagination.
+        
+        Format requirements:
+        - term: Minimum 2 characters (or 1 if exact_match=True)
+        - fields: Optional comma-separated list of fields to search in:
+          - name
+          - email  
+          - phone
+          - notes
+          - custom_fields (only searchable types: address, varchar, text, 
+                          varchar_auto, double, monetary, phone)
+        
         Args:
             term: The search term to look for (min 2 chars, or 1 if exact_match=True)
             fields: Fields to search in (name, email, phone, notes, custom_fields)
@@ -284,13 +409,34 @@ class PersonClient:
             include_fields: Additional fields to include in the results
             limit: Maximum number of results to return (max 500)
             cursor: Pagination cursor
-
+        
         Returns:
             Tuple of (list of person results, next cursor)
+            
+        Raises:
+            ValueError: If term is too short or other validation fails
         """
         logger.info(
             f"PersonClient: Searching for persons with term '{term}'"
         )
+        
+        # Validate search term
+        min_length = 1 if exact_match else 2
+        if not term or len(term.strip()) < min_length:
+            raise ValueError(
+                f"Search term must be at least {min_length} characters"
+                f"{' for exact_match=True' if exact_match else ''}"
+            )
+        
+        # Validate fields if provided
+        valid_fields = {"name", "email", "phone", "notes", "custom_fields"}
+        if fields:
+            invalid_fields = [f for f in fields if f not in valid_fields]
+            if invalid_fields:
+                raise ValueError(
+                    f"Invalid search fields: {invalid_fields}. "
+                    f"Must be one or more of {valid_fields}"
+                )
 
         # Build query parameters
         query_params: Dict[str, Any] = {

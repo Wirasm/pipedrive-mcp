@@ -7,18 +7,33 @@ from pipedrive.api.features.leads.models.lead_label import LeadLabel
 from pipedrive.api.features.shared.utils import format_tool_response
 from pipedrive.api.pipedrive_api_error import PipedriveAPIError
 from pipedrive.api.pipedrive_context import PipedriveMCPContext
-from pipedrive.mcp_instance import mcp
+from pipedrive.api.features.tool_decorator import tool
 
 
-@mcp.tool("get_lead_labels_from_pipedrive")
+@tool("leads")
 async def get_lead_labels_from_pipedrive(ctx: Context) -> str:
-    """
-    Get all lead labels from Pipedrive.
+    """Retrieves all available lead labels from Pipedrive.
+    
+    This tool fetches the complete list of lead labels configured in your Pipedrive account.
+    Lead labels are used to categorize and visually distinguish leads in Pipedrive. The labels
+    include information about their name, color, and ID, which can be used when creating
+    or updating leads.
+    
+    Common lead labels include "Hot", "Cold", and "Warm", but your account may have custom
+    labels as well. The IDs of these labels can be used with the label_ids parameter in
+    lead create and update operations.
+    
+    Example:
+        get_lead_labels_from_pipedrive()
+    
+    Args:
+        ctx: Context object containing the Pipedrive client
     
     Returns:
-        JSON response with a list of lead labels.
+        JSON string containing success status with a list of lead labels, or error message.
+        Each label contains id, name, color, and timestamp information.
     """
-    logger.info("Getting all lead labels from Pipedrive")
+    logger.debug("Tool 'get_lead_labels_from_pipedrive' ENTERED")
     
     try:
         # Use the Pipedrive client from the context
@@ -47,7 +62,14 @@ async def get_lead_labels_from_pipedrive(ctx: Context) -> str:
                 error_message=f"Pipedrive API error: {str(e)}"
             )
             
+    except PipedriveAPIError as e:
+        logger.error(
+            f"PipedriveAPIError in tool 'get_lead_labels_from_pipedrive': {str(e)} - Response Data: {e.response_data}"
+        )
+        return format_tool_response(False, error_message=str(e), data=e.response_data)
     except Exception as e:
         # Handle errors
-        logger.error(f"Error getting lead labels: {str(e)}")
-        return format_tool_response(False, error_message=f"Failed to get lead labels: {str(e)}")
+        logger.exception(
+            f"Unexpected error in tool 'get_lead_labels_from_pipedrive': {str(e)}"
+        )
+        return format_tool_response(False, error_message=f"An unexpected error occurred: {str(e)}")

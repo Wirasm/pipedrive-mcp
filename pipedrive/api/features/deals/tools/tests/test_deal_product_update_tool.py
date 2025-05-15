@@ -178,7 +178,7 @@ class TestUpdateProductInDealTool:
 
         # Verify error response
         assert response["success"] is False
-        assert "Invalid deal_id format" in response["error"]
+        assert "deal_id must be a numeric string" in response["error"]
 
         # Verify that update_product_in_deal was not called
         update_product_mock = mock_context.request_context.lifespan_context.pipedrive_client.deals.update_product_in_deal
@@ -200,7 +200,7 @@ class TestUpdateProductInDealTool:
 
         # Verify error response
         assert response["success"] is False
-        assert "Invalid product_attachment_id format" in response["error"]
+        assert "product_attachment_id must be a numeric string" in response["error"]
 
         # Verify that update_product_in_deal was not called
         update_product_mock = mock_context.request_context.lifespan_context.pipedrive_client.deals.update_product_in_deal
@@ -266,7 +266,7 @@ class TestUpdateProductInDealTool:
 
         # Verify error response
         assert response["success"] is False
-        assert "Invalid discount type" in response["error"]
+        assert "Invalid discount_type format" in response["error"]
 
         # Verify that update_product_in_deal was not called
         update_product_mock = mock_context.request_context.lifespan_context.pipedrive_client.deals.update_product_in_deal
@@ -288,7 +288,7 @@ class TestUpdateProductInDealTool:
 
         # Verify error response
         assert response["success"] is False
-        assert "Invalid tax method" in response["error"]
+        assert "Invalid tax_method format" in response["error"]
 
         # Verify that update_product_in_deal was not called
         update_product_mock = mock_context.request_context.lifespan_context.pipedrive_client.deals.update_product_in_deal

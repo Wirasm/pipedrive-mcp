@@ -10,7 +10,7 @@ from pipedrive.api.pipedrive_context import PipedriveMCPContext
 from pipedrive.mcp_instance import mcp
 
 
-@mcp.tool()
+@mcp.tool("search_deals_in_pipedrive")
 async def search_deals_in_pipedrive(
     ctx: Context,
     term: str,
@@ -25,20 +25,56 @@ async def search_deals_in_pipedrive(
 ) -> str:
     """Searches for deals in the Pipedrive CRM by title, notes or custom fields.
 
-    This tool searches across all deals in Pipedrive using the provided term.
-    Results can be filtered by person, organization and specific fields to search in.
+    This tool performs a full-text search across deals in Pipedrive using the provided search term.
+    The search can be focused on specific fields and filtered by person, organization, and status.
+    Results are returned in pages, with cursor-based pagination for handling large result sets.
+    
+    Format requirements:
+    - term: Required search text (minimum 2 characters, or 1 character with exact_match=True)
+    - fields_str: Optional comma-separated list of fields to search in (defaults to all searchable fields)
+    - person_id_str, organization_id_str: Optional numeric ID strings (e.g. "123")
+    - status: Optional filter by status ("open", "won", or "lost")
+    - limit_str: Maximum results per page (1-500, default 100)
+    
+    Search Fields:
+    You can specify which fields to search in with the fields_str parameter:
+    - "title": Search in deal titles only
+    - "notes": Search in deal notes only
+    - "custom_fields": Search in custom fields only
+    - Leave empty to search in all searchable fields
+    
+    Search Behavior:
+    - By default, performs a partial match search (matches terms within words)
+    - With exact_match=True, only complete word matches are returned
+    - Searches are case-insensitive
+    - Only searchable custom field types are included: address, text, varchar, numeric, phone
+    
+    Filtering:
+    - person_id_str: Find deals associated with a specific person
+    - organization_id_str: Find deals associated with a specific organization
+    - status: Filter to only "open", "won", or "lost" deals
+    
+    Example usage:
+    ```
+    search_deals_in_pipedrive(
+        term="software license",
+        fields_str="title,notes",
+        status="open",
+        organization_id_str="123"
+    )
+    ```
 
     args:
     ctx: Context
     term: str - The search term to look for (min 2 chars, or 1 if exact_match=True)
-    fields_str: Optional[str] = None - Comma-separated list of fields to search in (title, notes, custom_fields)
+    fields_str: Optional[str] = None - Comma-separated list of fields to search in ("title", "notes", "custom_fields")
     exact_match: bool = False - When True, only exact matches are returned
     person_id_str: Optional[str] = None - Filter deals by person ID
     organization_id_str: Optional[str] = None - Filter deals by organization ID
-    status: Optional[str] = None - Filter deals by status (open, won, lost)
+    status: Optional[str] = None - Filter deals by status ("open", "won", "lost")
     include_fields_str: Optional[str] = None - Comma-separated list of additional fields to include
-    limit_str: Optional[str] = "100" - Maximum number of results to return (max 500)
-    cursor: Optional[str] = None - Pagination cursor for the next page
+    limit_str: Optional[str] = "100" - Maximum number of results to return (1-500)
+    cursor: Optional[str] = None - Pagination cursor for retrieving the next page
     """
     logger.debug(
         f"Tool 'search_deals_in_pipedrive' ENTERED with raw args: "

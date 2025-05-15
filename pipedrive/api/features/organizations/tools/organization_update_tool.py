@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 
 from mcp.server.fastmcp import Context
 from pydantic import ValidationError
@@ -20,33 +20,64 @@ async def update_organization_in_pipedrive(
     owner_id_str: Optional[str] = None,
     address: Optional[str] = None,
     visible_to_str: Optional[str] = None,
+    industry: Optional[str] = None,
+    custom_fields_dict: Optional[Dict[str, Any]] = None,
 ) -> str:
     """
     Updates an existing organization in the Pipedrive CRM.
     
-    This tool requires the organization's ID and at least one field to update.
-    It can update basic information like name, owner, address, and visibility settings.
+    This tool updates an existing organization with the specified details. At least one field
+    must be provided for updating. Any fields not specified will remain unchanged.
     
-    args:
-    ctx: Context
-    id_str: str - The ID of the organization to update
+    Format requirements:
+    - address: Must be a physical address in text format. Will be automatically formatted
+      for the API. Example: "123 Main Street, New York, NY 10001"
+    - visible_to: Must be a value from 1-4 (1: Owner only, 2: Owner's visibility group,
+      3: Entire company, 4: Specified users)
+    - industry: Industry classification as a string (commonly used values include
+      "Technology", "Finance", "Healthcare", "Manufacturing", etc.)
+    - custom_fields_dict: JSON object containing custom field values, with field keys as defined
+      in your Pipedrive account
     
-    name: Optional[str] = None - The updated name of the organization
+    Usage example:
+    ```
+    update_organization_in_pipedrive(
+        id_str="12345",
+        name="Acme Corporation Updated",
+        address="123 Main St, San Francisco, CA 94107",
+        visible_to_str="3",
+        industry="Technology"
+    )
+    ```
     
-    owner_id_str: Optional[str] = None - The ID of the user who owns the organization
+    Args:
+        ctx: Context
+        id_str: The ID of the organization to update (required)
+        name: The updated name of the organization
+        owner_id_str: The ID of the user who owns the organization. Example: "12345"
+        address: The physical address of the organization. Will be properly formatted for the API.
+            Example: "123 Main St, San Francisco, CA 94107"
+        visible_to_str: Visibility setting of the organization (1-4).
+            1: Owner only, 2: Owner's visibility group, 3: Entire company, 4: Specified users.
+            Example: "3"
+        industry: Industry classification for the organization.
+            Example: "Technology", "Finance", "Healthcare", etc.
+        custom_fields_dict: Dictionary of custom field values with field keys as defined in Pipedrive.
+            Example: {"cf_annual_revenue": 1000000, "cf_company_size": "101-250"}
     
-    address: Optional[str] = None - The address of the organization
-    
-    visible_to_str: Optional[str] = None - Visibility setting of the organization (1-4)
+    Returns:
+        JSON string containing the updated organization data if successful, or error details if failed
     """
     logger.debug(
         f"Tool 'update_organization_in_pipedrive' ENTERED with raw args: "
         f"id_str='{id_str}', name='{name}', owner_id_str='{owner_id_str}', "
-        f"address='{address}', visible_to_str='{visible_to_str}'"
+        f"address='{address}', visible_to_str='{visible_to_str}', "
+        f"industry='{industry}', custom_fields_dict={custom_fields_dict}"
     )
 
     # Check if at least one update field is provided
-    if all(param is None or param == "" for param in [name, owner_id_str, address, visible_to_str]):
+    if all(param is None or param == "" for param in 
+           [name, owner_id_str, address, visible_to_str, industry]) and not custom_fields_dict:
         error_message = "At least one field must be provided for updating an organization"
         logger.error(error_message)
         return format_tool_response(False, error_message=error_message)
@@ -77,16 +108,25 @@ async def update_organization_in_pipedrive(
         if owner_id is not None:
             update_data["owner_id"] = owner_id
         if address is not None and address != "":
-            # Convert address string to dictionary format for the API
-            update_data["address"] = {"value": address}
+            # Format address using the Organization model's helper method
+            address_dict = Organization.format_address(address)
+            if address_dict:
+                update_data["address"] = address_dict
+            else:
+                return format_tool_response(False, error_message="Invalid address format. Address cannot be empty.")
         if visible_to is not None:
+            # Validate the visible_to value
+            if visible_to not in [1, 2, 3, 4]:
+                error_message = f"Invalid visibility value: {visible_to}. Must be one of: 1 (Owner only), 2 (Owner's visibility group), 3 (Entire company), or 4 (Specified users)"
+                logger.error(error_message)
+                return format_tool_response(False, error_message=error_message)
             update_data["visible_to"] = visible_to
-
-        # Validate the visible_to value if provided
-        if "visible_to" in update_data and update_data["visible_to"] not in [1, 2, 3, 4]:
-            error_message = f"Invalid visibility value: {visible_to}. Must be one of: 1, 2, 3, 4"
-            logger.error(error_message)
-            return format_tool_response(False, error_message=error_message)
+        if industry is not None and industry != "":
+            update_data["industry"] = industry
+            
+        # Add any custom fields to the payload
+        if custom_fields_dict:
+            update_data.update(custom_fields_dict)
 
         # Call the Pipedrive API to update the organization
         updated_organization = await pd_mcp_ctx.pipedrive_client.organizations.update_organization(

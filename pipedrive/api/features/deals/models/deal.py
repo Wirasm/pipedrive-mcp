@@ -2,9 +2,27 @@ from typing import List, Dict, Any, Optional
 from pydantic import BaseModel, Field, model_validator, field_validator
 from datetime import date, datetime
 
+# Constants for visibility levels
+VISIBILITY_PRIVATE = 0  # Visible to the owner only
+VISIBILITY_SHARED = 1    # Shared with specified users
+VISIBILITY_TEAM = 3      # Shared with owner's entire team
+VISIBILITY_ENTIRE_COMPANY = 7  # Visible to the entire company
+
 
 class Deal(BaseModel):
-    """Deal entity model with Pydantic validation"""
+    """Deal entity model with Pydantic validation
+    
+    A deal represents a sales opportunity in Pipedrive CRM. Deals are associated with
+    pipelines and stages, and can link to persons and organizations. Each deal has a
+    monetary value in a specified currency.
+    
+    Important relationships:
+    - Each deal must belong to a stage
+    - Each stage belongs to a pipeline
+    - When setting stage_id, the stage must belong to the specified pipeline_id
+    - If only stage_id is set, the pipeline_id will be determined by the stage
+    - If both are set, they must be compatible (stage must belong to the pipeline)
+    """
     title: str
     value: Optional[float] = None
     currency: str = "USD"
@@ -12,10 +30,10 @@ class Deal(BaseModel):
     org_id: Optional[int] = None
     status: str = "open"
     owner_id: Optional[int] = None
-    stage_id: Optional[int] = None
-    pipeline_id: Optional[int] = None
+    stage_id: Optional[int] = None  # The ID of the stage this deal belongs to
+    pipeline_id: Optional[int] = None  # The ID of the pipeline this deal belongs to
     expected_close_date: Optional[date] = None
-    visible_to: Optional[int] = None
+    visible_to: Optional[int] = None  # Visibility setting: 0=private, 1=shared, 3=team, 7=company
     probability: Optional[int] = None
     lost_reason: Optional[str] = None
     id: Optional[int] = None
@@ -150,5 +168,19 @@ class Deal(BaseModel):
         # Lost reason should only be set if status is 'lost'
         if self.status != "lost" and self.lost_reason:
             raise ValueError("Lost reason can only be set if deal status is 'lost'")
+            
+        # Validate visible_to is in the valid range if provided
+        if self.visible_to is not None:
+            valid_visibility_values = {0, 1, 3, 7}  # Private, Shared, Team, Company
+            if self.visible_to not in valid_visibility_values:
+                raise ValueError(
+                    f"Invalid visible_to value: {self.visible_to}. " 
+                    f"Must be one of: {', '.join(map(str, valid_visibility_values))} " 
+                    f"(0=private, 1=shared, 3=team, 7=company)"
+                )
+                
+        # Note: We can't validate stage/pipeline compatibility here because that would require
+        # an API call to verify the stage belongs to the pipeline. This validation should
+        # happen at the API client level before submitting to the Pipedrive API.
 
         return self

@@ -8,10 +8,10 @@ from pipedrive.api.features.shared.conversion.id_conversion import convert_id_st
 from pipedrive.api.features.shared.utils import format_tool_response, safe_split_to_list
 from pipedrive.api.pipedrive_api_error import PipedriveAPIError
 from pipedrive.api.pipedrive_context import PipedriveMCPContext
-from pipedrive.mcp_instance import mcp
+from pipedrive.api.features.tool_decorator import tool
 
 
-@mcp.tool("search_leads_in_pipedrive")
+@tool("leads")
 async def search_leads_in_pipedrive(
     ctx: Context,
     term: str,
@@ -23,57 +23,87 @@ async def search_leads_in_pipedrive(
     limit: Optional[str] = "100",
     cursor: Optional[str] = None,
 ) -> str:
-    """
-    Search for leads in Pipedrive by title, notes, and/or custom fields.
+    """Searches for leads in Pipedrive by keyword and various criteria.
+    
+    This tool allows you to search for leads using text search across different fields like
+    title, notes, and custom fields. You can filter the results by associated person or 
+    organization, and use pagination to navigate through large result sets.
+    
+    Format requirements:
+        - term: Required search keyword (min 2 chars, or 1 if exact_match is true)
+        - fields: Optional comma-separated list of fields to search in. Values can include:
+          "title", "notes", "custom_fields"
+        - exact_match: When "true", only exact matches will be returned (default: "false")
+          With exact_match enabled, term can be just 1 character
+        - person_id: Filter leads by associated person ID
+        - organization_id: Filter leads by associated organization ID
+        - include_fields: Comma-separated list of additional fields to include in results
+          Currently supported: "lead.was_seen"
+        - limit: Maximum number of results (1-500, default: 100) 
+        - cursor: Pagination cursor from previous search results
+    
+    Example:
+        search_leads_in_pipedrive(
+            term="New opportunity",
+            fields="title,notes",
+            exact_match="false",
+            person_id="123",
+            limit="50"
+        )
     
     Args:
-        term: 
-            The search term to look for (min 2 chars, or 1 with exact_match).
-            
-        fields: 
-            Comma-separated list of fields to search in (title, notes, custom_fields).
-            
-        exact_match: 
-            When "true", only exact matches are returned (default: "false").
-            
-        person_id: 
-            Filter leads by person ID.
-            
-        organization_id: 
-            Filter leads by organization ID.
-            
-        include_fields: 
-            Comma-separated list of additional fields to include in results.
-            
-        limit: 
-            Maximum number of results to return (max 500, default: 100).
-            
-        cursor: 
-            Pagination cursor for retrieving additional results.
+        ctx: Context object containing the Pipedrive client
+        term: The search term to look for (min 2 chars, or 1 if exact_match)
+        fields: Comma-separated list of fields to search in (title, notes, custom_fields)
+        exact_match: When "true", only exact matches are returned (default: "false")
+        person_id: Filter leads by person ID
+        organization_id: Filter leads by organization ID
+        include_fields: Comma-separated list of additional fields to include in results
+        limit: Maximum number of results to return (max 500, default: 100)
+        cursor: Pagination cursor for retrieving additional results
     
     Returns:
-        JSON response with search results and pagination information.
+        JSON string containing success status with search results and pagination info, or error message.
     """
-    logger.info(f"Searching leads with term: {term}")
+    logger.debug(
+        f"Tool 'search_leads_in_pipedrive' ENTERED with raw args: "
+        f"term='{term}', fields='{fields}', exact_match='{exact_match}', "
+        f"person_id='{person_id}', organization_id='{organization_id}', "
+        f"include_fields='{include_fields}', limit='{limit}', cursor='{cursor}'"
+    )
+    
+    # Sanitize empty strings to None
+    fields = None if fields == "" else fields
+    exact_match = "false" if exact_match == "" else exact_match
+    person_id = None if person_id == "" else person_id
+    organization_id = None if organization_id == "" else organization_id
+    include_fields = None if include_fields == "" else include_fields
+    limit = None if limit == "" else limit
+    cursor = None if cursor == "" else cursor
     
     # Validate required parameters
-    if not term:
-        return format_tool_response(False, error_message="Search term cannot be empty")
+    if not term or not term.strip():
+        return format_tool_response(False, error_message="Search term is required and cannot be empty")
     
-    # Convert boolean parameters
+    # Validate and convert boolean parameters
+    if exact_match.lower() not in ["true", "false"]:
+        return format_tool_response(
+            False,
+            error_message=f"Invalid exact_match value: '{exact_match}'. Must be 'true' or 'false'."
+        )
     exact_match_bool = exact_match.lower() == "true"
     
     # Validate term length based on exact_match
-    if not exact_match_bool and len(term) < 2:
+    if not exact_match_bool and len(term.strip()) < 2:
         return format_tool_response(
             False, 
-            error_message="Search term must be at least 2 characters long when exact_match is false"
+            error_message=f"Search term must be at least 2 characters long when exact_match is false. Got: '{term}'."
         )
     
-    if exact_match_bool and len(term) < 1:
+    if exact_match_bool and len(term.strip()) < 1:
         return format_tool_response(
             False, 
-            error_message="Search term must be at least 1 character long when exact_match is true"
+            error_message="Search term must be at least 1 character long when exact_match is true."
         )
     
     # Convert numeric parameters
@@ -82,13 +112,35 @@ async def search_leads_in_pipedrive(
         if limit_int < 1 or limit_int > 500:
             return format_tool_response(
                 False, 
-                error_message="Limit must be between 1 and 500"
+                error_message=f"Invalid limit: {limit}. Must be an integer between 1 and 500."
             )
     except ValueError:
         return format_tool_response(
             False, 
-            error_message="Invalid limit parameter. Must be an integer."
+            error_message=f"Invalid limit parameter: '{limit}'. Must be an integer (e.g., '100', '250')."
         )
+        
+    # Validate fields if provided
+    if fields:
+        fields_list = safe_split_to_list(fields)
+        valid_fields = ["title", "notes", "custom_fields"]
+        for field in fields_list:
+            if field not in valid_fields:
+                return format_tool_response(
+                    False,
+                    error_message=f"Invalid search field: '{field}'. Must be one of: {', '.join(valid_fields)}"
+                )
+                
+    # Validate include_fields if provided
+    if include_fields:
+        include_fields_list = safe_split_to_list(include_fields)
+        valid_include_fields = ["lead.was_seen"]
+        for field in include_fields_list:
+            if field not in valid_include_fields:
+                return format_tool_response(
+                    False,
+                    error_message=f"Invalid include_field: '{field}'. Must be one of: {', '.join(valid_include_fields)}"
+                )
     
     # Convert ID parameters
     person_id_int = None
@@ -166,8 +218,16 @@ async def search_leads_in_pipedrive(
             
     except ValueError as e:
         # Handle validation errors
-        return format_tool_response(False, error_message=str(e))
+        logger.error(f"Validation error searching leads: {str(e)}")
+        return format_tool_response(False, error_message=f"Validation error: {str(e)}")
+    except PipedriveAPIError as e:
+        logger.error(
+            f"PipedriveAPIError in tool 'search_leads_in_pipedrive': {str(e)} - Response Data: {e.response_data}"
+        )
+        return format_tool_response(False, error_message=str(e), data=e.response_data)
     except Exception as e:
         # Handle other errors
-        logger.error(f"Error searching leads: {str(e)}")
-        return format_tool_response(False, error_message=f"Failed to search leads: {str(e)}")
+        logger.exception(
+            f"Unexpected error in tool 'search_leads_in_pipedrive': {str(e)}"
+        )
+        return format_tool_response(False, error_message=f"An unexpected error occurred: {str(e)}")

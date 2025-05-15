@@ -130,7 +130,7 @@ class TestDealProductModel:
             
         # Check error message
         error_msg = str(exc_info.value)
-        assert "Product price must be greater than zero" in error_msg
+        assert "Item price must be greater than zero" in error_msg
         
         with pytest.raises(ValidationError) as exc_info:
             DealProduct(
@@ -141,7 +141,7 @@ class TestDealProductModel:
             
         # Check error message
         error_msg = str(exc_info.value)
-        assert "Product price must be greater than zero" in error_msg
+        assert "Item price must be greater than zero" in error_msg
         
     def test_quantity_validation(self):
         """Test that quantity must be positive"""
@@ -163,7 +163,7 @@ class TestDealProductModel:
             
         # Check error message
         error_msg = str(exc_info.value)
-        assert "Product quantity must be greater than zero" in error_msg
+        assert "Quantity must be greater than zero" in error_msg
         
         with pytest.raises(ValidationError) as exc_info:
             DealProduct(
@@ -174,7 +174,7 @@ class TestDealProductModel:
             
         # Check error message
         error_msg = str(exc_info.value)
-        assert "Product quantity must be greater than zero" in error_msg
+        assert "Quantity must be greater than zero" in error_msg
         
     def test_discount_type_validation(self):
         """Test discount_type must be one of valid options"""
@@ -206,7 +206,8 @@ class TestDealProductModel:
             
         # Check error message
         error_msg = str(exc_info.value)
-        assert "Discount type must be one of: percentage, amount" in error_msg
+        assert "Invalid discount_type" in error_msg
+        assert "Must be one of: percentage, amount" in error_msg
         
     def test_tax_method_validation(self):
         """Test tax_method must be one of valid options"""
@@ -245,7 +246,8 @@ class TestDealProductModel:
             
         # Check error message
         error_msg = str(exc_info.value)
-        assert "Tax method must be one of: inclusive, exclusive, none" in error_msg
+        assert "Invalid tax_method" in error_msg
+        assert "Must be one of: inclusive, exclusive, none" in error_msg
         
     def test_billing_frequency_validation(self):
         """Test billing_frequency must be one of valid options"""
@@ -286,7 +288,7 @@ class TestDealProductModel:
             
         # Check error message
         error_msg = str(exc_info.value)
-        assert "Billing frequency must be one of" in error_msg
+        assert "Invalid billing_frequency" in error_msg
         
     def test_billing_frequency_cycles_validation(self):
         """Test billing_frequency_cycles validation rules"""
@@ -312,7 +314,7 @@ class TestDealProductModel:
             
         # Check error message
         error_msg = str(exc_info.value)
-        assert "Billing frequency cycles must be null when billing frequency is 'one-time'" in error_msg
+        assert "When billing_frequency is 'one-time', billing_frequency_cycles must be null" in error_msg
         
         # Test weekly with None cycles (invalid)
         with pytest.raises(ValidationError) as exc_info:
@@ -326,7 +328,7 @@ class TestDealProductModel:
             
         # Check error message
         error_msg = str(exc_info.value)
-        assert "Billing frequency cycles cannot be null when billing frequency is 'weekly'" in error_msg
+        assert "When billing_frequency is 'weekly', billing_frequency_cycles must be specified" in error_msg
         
         # Test valid cycles range
         deal_product2 = DealProduct(
@@ -350,4 +352,5 @@ class TestDealProductModel:
             
         # Check error message
         error_msg = str(exc_info.value)
-        assert "Billing frequency cycles must be a positive integer less than or equal to 208" in error_msg
+        assert "billing_frequency_cycles" in error_msg.lower()
+        assert "208" in error_msg

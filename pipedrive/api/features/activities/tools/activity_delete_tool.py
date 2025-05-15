@@ -4,7 +4,7 @@ from mcp.server.fastmcp import Context
 
 from log_config import logger
 from pipedrive.api.features.shared.conversion.id_conversion import convert_id_string
-from pipedrive.api.features.shared.utils import format_tool_response
+from pipedrive.api.features.shared.utils import format_tool_response, sanitize_inputs
 from pipedrive.api.pipedrive_api_error import PipedriveAPIError
 from pipedrive.api.pipedrive_context import PipedriveMCPContext
 from pipedrive.api.features.tool_decorator import tool
@@ -13,22 +13,42 @@ from pipedrive.api.features.tool_decorator import tool
 @tool("activities")
 async def delete_activity_from_pipedrive(
     ctx: Context,
-    id_str: str
-):
+    id: str
+) -> str:
     """Deletes an activity from Pipedrive CRM.
 
-    This tool marks an activity as deleted.
+    This tool marks an activity as deleted in Pipedrive. After deletion, the activity
+    will no longer appear in normal API responses, but it remains in the Pipedrive
+    database for 30 days before being permanently deleted.
 
-    args:
-    ctx: Context
-    id_str: str - The ID of the activity to delete
+    Format requirements:
+    - id: Activity ID as a numeric string (e.g., "123")
+
+    Example:
+    ```
+    delete_activity_from_pipedrive(
+        id="123"
+    )
+    ```
+
+    Args:
+        ctx: Context object provided by the MCP server
+        id: ID of the activity to delete
+
+    Returns:
+        JSON formatted response with the result of the delete operation
     """
-    logger.info(f"Tool 'delete_activity_from_pipedrive' ENTERED with raw args: id_str='{id_str}'")
+    logger.info(f"Tool 'delete_activity_from_pipedrive' ENTERED with raw args: id='{id}'")
+    
+    # Sanitize inputs
+    inputs = {"id": id}
+    sanitized = sanitize_inputs(inputs)
+    id_str = sanitized["id"]
     
     pd_mcp_ctx: PipedriveMCPContext = ctx.request_context.lifespan_context
     
     # Convert activity ID string to integer
-    activity_id, id_error = convert_id_string(id_str, "activity_id")
+    activity_id, id_error = convert_id_string(id_str, "activity_id", "123")
     if id_error:
         logger.error(id_error)
         return format_tool_response(False, error_message=id_error)

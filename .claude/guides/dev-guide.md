@@ -18,118 +18,208 @@ The project follows a vertical slice architecture, which organizes code by featu
 3. **Minimal Cross-Feature Dependencies**: Features should be independent where possible
 4. **Shared Utilities**: Common functionality is extracted to shared utilities
 
-### Directory Structure
+## Feature Registry System
 
-```
-pipedrive/api/features/
-├── feature1/                # A specific feature (e.g., persons)
-│   ├── client/              # API client for this feature
-│   │   ├── feature1_client.py
-│   │   └── tests/
-│   ├── models/              # Domain models for this feature
-│   │   ├── model1.py
-│   │   └── tests/
-│   └── tools/               # MCP tools for this feature
-│       ├── tool1.py
-│       └── tests/
-├── feature2/                # Another feature
-│   └── ...
-└── shared/                  # Shared utilities used across features
-    ├── conversion/
-    ├── validation/
-    └── ...
-```
+The project uses a feature registry system that allows:
 
-## Implementation Guidelines
+1. **Runtime Feature Management**: Features can be enabled/disabled dynamically
+2. **Tool Organization**: Tools are grouped by feature
+3. **Feature Discovery**: New features are automatically discovered and registered
 
-### Models
+### Using the Feature Registry
 
-- Use Pydantic v2 for all models
-- Include validation in models where appropriate
-- Provide methods for converting between API and domain representations
-- Always include to_api_dict() and from_api_dict() methods
-
-Example:
 ```python
-from pydantic import BaseModel, Field
+# Register a feature
+from pipedrive.api.features.tool_registry import registry, FeatureMetadata
 
-class MyModel(BaseModel):
-    id: Optional[int] = None
-    name: str
-    active: bool = True
-    
-    def to_api_dict(self) -> Dict[str, Any]:
-        """Convert to API-compatible dictionary"""
-        return {k: v for k, v in self.model_dump().items() if v is not None}
-    
-    @classmethod
-    def from_api_dict(cls, data: Dict[str, Any]) -> 'MyModel':
-        """Create from API response dictionary"""
-        return cls(**data)
+registry.register_feature(
+    "feature_name",
+    FeatureMetadata(
+        name="Feature Name",
+        description="Description of what this feature does",
+        version="1.0.0"
+    )
+)
+
+# Register a tool
+from .tools.my_tool import my_tool_function
+registry.register_tool("feature_name", my_tool_function)
 ```
 
-### Clients
+## API Client Structure
 
-- Create feature-specific clients that focus on one resource type
-- Use the base_client for HTTP communication
-- Keep methods focused on single responsibilities
-- Document parameters and return types
+The API client is structured into multiple layers:
 
-Example:
+### Base Client
+
+The `BaseClient` handles basic HTTP functionality:
+
 ```python
-class FeatureClient:
+# pipedrive/api/base_client.py
+class BaseClient:
+    """Base client for making API requests."""
+    
+    async def request(
+        self, method: str, endpoint: str, 
+        query_params: Optional[Dict[str, Any]] = None,
+        json_payload: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """Make an HTTP request to the Pipedrive API."""
+        # Implementation...
+```
+
+### Pipedrive Client
+
+The `PipedriveClient` combines all feature-specific clients:
+
+```python
+# pipedrive/api/pipedrive_client.py
+class PipedriveClient:
+    """Client for the Pipedrive API."""
+    
+    def __init__(self, api_token: str, company_domain: str):
+        self.base_client = BaseClient(api_token, company_domain)
+        
+        # Initialize feature clients
+        self.person = PersonClient(self.base_client)
+        self.organization = OrganizationClient(self.base_client)
+        self.deal = DealClient(self.base_client)
+        self.lead = LeadClient(self.base_client)
+        self.activities = ActivityClient(self.base_client)
+        self.item_search = ItemSearchClient(self.base_client)
+```
+
+### Feature-Specific Clients
+
+Each feature has its own client implementation:
+
+```python
+# pipedrive/api/features/persons/client/person_client.py
+class PersonClient:
+    """Client for the Persons API."""
+    
     def __init__(self, base_client: BaseClient):
         self.base_client = base_client
     
-    async def create_resource(self, resource: Resource) -> Dict[str, Any]:
-        """Create a new resource."""
+    async def create_person(self, person_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a new person in Pipedrive."""
         return await self.base_client.request(
-            method="POST",
-            endpoint="/resources",
-            json_payload=resource.to_api_dict()
+            "POST", "/persons", json_payload=person_data
         )
 ```
 
-### Tools
+## API Versioning Support
 
-- Create MCP tools that wrap client methods
-- Use shared utilities for common operations
-- Implement proper error handling
-- Return standardized responses
+The Pipedrive API has different versions (v1 and v2) with different behavior:
 
-Example:
+- **v1 API**: Uses start/more_items_in_collection-based pagination
+- **v2 API**: Uses cursor-based pagination (preferred when available)
+
+The base client automatically handles the different API versions:
+
 ```python
-@mcp.tool()
-async def create_resource_tool(ctx: Context, name: str, ...) -> str:
-    """Creates a new resource."""
-    # Get context
-    pd_mcp_ctx = ctx.request_context.lifespan_context
+# Example of making a v2 API request
+response_data = await self.base_client.request(
+    "GET", 
+    "/v2/leads",  # Note the v2 prefix
+    query_params={"cursor": cursor, "limit": limit}
+)
+
+# The base client detects the API version and handles pagination appropriately
+```
+
+## Tools Implementation
+
+Each tool follows a consistent pattern using the feature-aware decorator:
+
+```python
+from pipedrive.api.features.tool_decorator import tool
+
+@tool("feature_name")
+async def create_entity_in_pipedrive(
+    ctx: Context,
+    required_param: str,
+    optional_param: Optional[str] = None,
+) -> str:
+    """Creates a new entity in Pipedrive.
     
-    # Convert IDs
-    id_value, error = convert_id_string(id_str, "field_name")
-    if error:
-        return format_tool_response(False, error_message=error)
+    This tool creates an entity with the specified details.
     
-    # Create resource
-    try:
-        resource = Resource(name=name, ...)
-        result = await pd_mcp_ctx.pipedrive_client.feature.create_resource(resource)
-        return format_tool_response(True, data=result)
-    except Exception as e:
-        return format_tool_response(False, error_message=str(e))
+    Format requirements:
+    - required_param: Description with format requirements
+    - optional_param: Description with format requirements
+    
+    Example:
+    ```
+    create_entity_in_pipedrive(
+        required_param="value",
+        optional_param="optional"
+    )
+    ```
+    
+    Args:
+        ctx: Context object containing the Pipedrive client
+        required_param: Description
+        optional_param: Description
+    
+    Returns:
+        JSON string containing success status and created entity data or error message.
+    """
+    # Implementation...
+```
+
+## Common Utilities
+
+### Response Formatting
+
+```python
+from pipedrive.api.features.shared.utils import format_tool_response
+
+# Success response
+return format_tool_response(True, data=response_data)
+
+# Error response
+return format_tool_response(False, error_message="Descriptive error message")
+```
+
+### ID Conversion
+
+```python
+from pipedrive.api.features.shared.conversion.id_conversion import convert_id_string
+
+# Convert and validate ID
+id_value, error = convert_id_string(id_str, "field_name")
+if error:
+    return format_tool_response(False, error_message=error)
 ```
 
 ## Testing
 
+- Use `pytest` and `pytest-asyncio` for all tests
 - Co-locate tests with the code they test
-- Test each component independently
-- Use fixture factories for common test data
-- Mock external dependencies
+- Create fixture factories for common test data
+- Use `AsyncMock` for mocking async functions
 
-For more details, see the project's testing guidelines.
+### Testing Tools
 
-## Common Development Tasks
-
-- **Adding a new feature**: Use the `/project:new-feature` command
-- **Fixing tests**: Use the `/project:fix-test` command
-- **Refactoring utilities**: Use the `/project:refactor-utility` command
+```python
+@pytest.mark.asyncio
+async def test_create_entity_success(mock_context):
+    """Test successful entity creation."""
+    # Mock the client response
+    mock_context.request_context.lifespan_context.pipedrive_client.feature.create_entity.return_value = {
+        "id": 123,
+        "name": "Test Entity"
+    }
+    
+    # Call the tool
+    result = await create_entity_in_pipedrive(
+        ctx=mock_context,
+        required_param="Test Entity"
+    )
+    
+    # Parse and verify result
+    result_data = json.loads(result)
+    assert result_data["success"] is True
+    assert result_data["data"]["id"] == 123
+```

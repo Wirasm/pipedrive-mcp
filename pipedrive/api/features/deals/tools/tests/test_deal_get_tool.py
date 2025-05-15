@@ -138,7 +138,7 @@ class TestGetDealTool:
 
         # Verify error response
         assert response["success"] is False
-        assert "Invalid deal_id format" in response["error"]
+        assert "deal_id must be a numeric string" in response["error"]
 
         # Verify that get_deal was not called
         get_deal_mock = mock_context.request_context.lifespan_context.pipedrive_client.deals.get_deal

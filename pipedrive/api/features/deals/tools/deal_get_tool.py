@@ -10,7 +10,7 @@ from pipedrive.api.pipedrive_context import PipedriveMCPContext
 from pipedrive.mcp_instance import mcp
 
 
-@mcp.tool()
+@mcp.tool("get_deal_from_pipedrive")
 async def get_deal_from_pipedrive(
     ctx: Context,
     id_str: str,
@@ -19,12 +19,44 @@ async def get_deal_from_pipedrive(
 ) -> str:
     """Gets the details of a specific deal from Pipedrive CRM.
 
-    This tool retrieves complete information about a deal by its ID, with
-    options to include additional fields and custom fields in the response.
+    This tool retrieves complete information about a deal by its ID, including all standard 
+    and optionally specified custom fields. You can request specific additional fields or 
+    custom fields to optimize the response size.
+    
+    Format requirements:
+    - id_str: Required numeric ID of the deal to retrieve (e.g. "123")
+    - include_fields_str: Optional comma-separated list of additional fields to include 
+      (e.g. "products_count,files_count,activities_count")
+    - custom_fields_str: Optional comma-separated list of custom field keys to include
+      (e.g. "special_requirements,expected_roi,compliance_status")
+      
+    Available include_fields values:
+    - next_activity_id: ID of the next scheduled activity
+    - last_activity_id: ID of the last completed activity
+    - first_won_time: When the deal was first marked as won
+    - products_count: Number of products attached to the deal
+    - files_count: Number of files attached to the deal
+    - notes_count: Number of notes attached to the deal
+    - followers_count: Number of users following the deal
+    - email_messages_count: Number of emails linked to the deal
+    - activities_count: Total number of activities related to the deal
+    - done_activities_count: Number of completed activities
+    - undone_activities_count: Number of incomplete activities
+    - participants_count: Number of participants in the deal
+    - last_incoming_mail_time: Timestamp of last received email
+    - last_outgoing_mail_time: Timestamp of last sent email
+    
+    Example usage:
+    ```
+    get_deal_from_pipedrive(
+        id_str="123",
+        include_fields_str="products_count,files_count,activities_count"
+    )
+    ```
 
     args:
     ctx: Context
-    id_str: str - The ID of the deal to retrieve
+    id_str: str - The ID of the deal to retrieve (required)
     include_fields_str: Optional[str] = None - Comma-separated list of additional fields to include
     custom_fields_str: Optional[str] = None - Comma-separated list of custom fields to include
     """
