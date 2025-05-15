@@ -1,0 +1,24 @@
+# This file defines code owners for various parts of the repository
+# Code owners are automatically requested for review on pull requests that modify code they own
+# Learn more: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owners for everything in the repo (unless a later match takes precedence)
+*       @wirasm
+
+# Workflow files require approval from wirasm
+.github/      @wirasm
+
+# Core utility libraries
+pipedrive/     @wirasm
+PRPs/ @wirasm
+scripts/ @wirasm
+CLAUDE.md @wirasm
+
+# Concept library implementations
+server.py        @wirasm
+
+# Python build configuration
+pyproject.toml          @wirasm
+
+# Documentation files
+*.md                    @wirasm
