@@ -22,30 +22,85 @@ Additional features:
 
 ## Quick Start with Claude Code
 
-The fastest way to get started with the Pipedrive MCP Server in Claude Code:
+The fastest way to get started with the Pipedrive MCP Server and set it up in your claude desktop app:
+
+### 1. Install Required Tools
+
+Open your terminal or command prompt and run these commands:
 
 ```bash
-# Install uv (if not already installed)
+# Install Python's uv package manager (if not already installed)
 curl -sSf https://install.python-uv.org/uv | python3 -
+```
 
-# Clone the repository
-git clone https://github.com/your-username/pipedrive-mcp.git
+For more detailed installation instructions for uv, visit: [Astral's UV Installation Documentation](https://github.com/astral-sh/uv/blob/main/README.md#installation)
+
+### 2. Download the Code
+
+**No GitHub account required!** Just run these commands in your terminal:
+
+Select a folder where you want the code to be downloaded to and run these commands:
+
+```bash
+# Clone the repository (download the code)
+git clone https://github.com/Wirasm/pipedrive-mcp.git
+
+# Move into the project folder
 cd pipedrive-mcp
+```
 
-# Install dependencies
+### 3. Install Python Dependencies
+
+Open your terminal and run this command exactly as written:
+
+```bash
+# Install all required packages
 uv sync
+```
 
-# Create .env file with your Pipedrive credentials
-cat > .env << EOF
+### 4. Set Up Your Pipedrive Credentials
+
+1. Find the `.env.example` file in the project folder
+2. Make a copy and rename it to just `.env`
+3. Open the `.env` file in any text editor
+4. Replace the placeholders with your actual Pipedrive information:
+
+```
 PIPEDRIVE_API_TOKEN=your_api_token
 PIPEDRIVE_COMPANY_DOMAIN=your_company_domain
-EOF
+```
 
-# Install the MCP server to Claude Desktop
+All other configurations you see in the .env file are optional and can be left as is.
+
+**To get your Pipedrive API Token:**
+1. Log in to your Pipedrive account
+2. Click on your profile picture in the top-right corner
+3. Select "Personal preferences"
+4. Go to the "API" tab
+5. Click "Generate new token" if you don't already have one
+6. Copy the generated token and paste it in the `.env` file
+
+**For the company domain:**
+If your Pipedrive URL is `https://mycompany.pipedrive.com/pipeline`, then your domain is `mycompany`
+
+### 5. Install the MCP Server in Claude Desktop
+
+Open your terminal and run this command:
+
+```bash
+# Install the MCP server
 mcp install server.py
 ```
 
-Then open Claude Desktop and start managing your Pipedrive CRM!
+This will automatically register the Pipedrive tools with Claude Desktop. 
+
+### 6. Start Using Pipedrive with Claude
+
+1. **Important:** Restart Claude Desktop app if it was already running
+2. Open Claude Desktop
+3. Start a new chat, and Claude can now interact with your Pipedrive CRM!
+
+Try asking Claude to "Show me my recent deals" or "Create a new contact here are the details: ..." to get started.
 
 ## Available MCP Tools
 
